@@ -11,9 +11,8 @@ import {
   X,
 } from 'lucide-react';
 import {
-  getBatchStatusLabel,
-  getBatchStatusStyle,
-  getInspectionResultLabel,
+  getInspectionStatusInfo,
+  getWarehouseIntakeStatusInfo,
 } from '../lib/statusLabels';
 import {
   fetchQualityWarehouseBatches,
@@ -22,15 +21,28 @@ import {
 } from '../services/qualityWarehouseService';
 
 function buildPokaYokeAlert(batch, rawMessage) {
-  const inspectionResult = batch?.inspections?.[0]?.result;
-  if (inspectionResult === 'FAILED') {
+  const inspectionInfo = getInspectionStatusInfo(batch?.inspections);
+
+  if (inspectionInfo.code === 'FAILED') {
     return {
       batchCode: batch.batch_code,
       productName: batch.product_name,
-      inspectionLabel: 'Không đạt chuẩn',
+      inspectionLabel: inspectionInfo.label,
       title: 'Không thể nhập kho: Lô hàng có kết quả kiểm định Không đạt!',
       description:
-        'Lô nông sản này chưa đạt yêu cầu chất lượng nên hệ thống chặn không cho đưa vào kho bảo quản.',
+        'Lô nông sản này đã kiểm định nhưng Không đạt yêu cầu nên hệ thống chặn không cho đưa vào kho bảo quản.',
+      detail: rawMessage,
+    };
+  }
+
+  if (inspectionInfo.code === 'UNKNOWN') {
+    return {
+      batchCode: batch.batch_code,
+      productName: batch.product_name,
+      inspectionLabel: inspectionInfo.label,
+      title: 'Không thể nhập kho: Trạng thái kiểm định không hợp lệ hoặc chưa rõ!',
+      description:
+        'Backend từ chối nhập kho vì trạng thái kiểm định hiện tại chưa xác nhận Đạt chuẩn.',
       detail: rawMessage,
     };
   }
@@ -111,10 +123,9 @@ export default function WarehouseWorkspace({ user }) {
           item.id === batch.id ? { ...item, status: updatedBatch.status } : item
         )
       );
+      const nextIntakeInfo = getWarehouseIntakeStatusInfo(updatedBatch.status);
       setSuccessMsg(
-        `Đã nhập kho thành công lô ${updatedBatch.batch_code} (${batch.product_name}) — trạng thái: ${getBatchStatusLabel(
-          updatedBatch.status
-        )}.`
+        `Đã nhập kho thành công lô ${updatedBatch.batch_code} (${batch.product_name}) — ${nextIntakeInfo.label}.`
       );
       if (warning) {
         setAuditWarning(warning);
@@ -187,7 +198,7 @@ export default function WarehouseWorkspace({ user }) {
                   <strong className="text-slate-900">{pokaYokeModal.productName}</strong>
                 </div>
                 <div className="sm:col-span-2">
-                  <span className="text-slate-500">Tình trạng kiểm định: </span>
+                  <span className="text-slate-500">Trạng thái kiểm định: </span>
                   <span className="inline-flex items-center whitespace-nowrap rounded-full bg-rose-100 px-2.5 py-0.5 font-bold text-rose-800">
                     {pokaYokeModal.inspectionLabel}
                   </span>
@@ -321,8 +332,8 @@ export default function WarehouseWorkspace({ user }) {
                 <th className="whitespace-nowrap py-2 pr-3">Mã lô</th>
                 <th className="whitespace-nowrap py-2 pr-3">Nông sản</th>
                 <th className="whitespace-nowrap py-2 pr-3">Sản lượng</th>
-                <th className="whitespace-nowrap py-2 pr-3">Trạng thái</th>
-                <th className="whitespace-nowrap py-2 pr-3">Kết quả Kiểm định</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái kiểm định</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái nhập kho</th>
                 <th className="whitespace-nowrap py-2">Thao tác</th>
               </tr>
             </thead>
@@ -339,11 +350,9 @@ export default function WarehouseWorkspace({ user }) {
               ) : (
                 <>
                   {batches.map((b) => {
-                    const insp = b.inspections?.[0];
-                    const alreadyStored =
-                      b.status === 'IN_STORAGE' ||
-                      b.status === 'DISTRIBUTING' ||
-                      b.status === 'SOLD';
+                    const inspectionInfo = getInspectionStatusInfo(b.inspections);
+                    const intakeInfo = getWarehouseIntakeStatusInfo(b.status);
+                    const alreadyReceived = intakeInfo.code === 'RECEIVED';
                     const isProcessing = loadingId === b.id;
 
                     return (
@@ -352,37 +361,25 @@ export default function WarehouseWorkspace({ user }) {
                           {b.batch_code}
                         </td>
                         <td className="py-3 pr-3 font-medium text-slate-900">{b.product_name}</td>
-                        <td className="py-3 pr-3 text-slate-600">
+                        <td className="py-3 pr-3 whitespace-nowrap text-slate-600">
                           {b.quantity} {b.unit}
                         </td>
                         <td className="py-3 pr-3">
                           <span
-                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
-                              b.status
-                            )}`}
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${inspectionInfo.badgeClass}`}
                           >
-                            {getBatchStatusLabel(b.status)}
+                            {inspectionInfo.label}
                           </span>
                         </td>
                         <td className="py-3 pr-3">
-                          {insp ? (
-                            <span
-                              className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                insp.result === 'PASSED'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}
-                            >
-                              {getInspectionResultLabel(insp.result)}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                              Chưa kiểm định
-                            </span>
-                          )}
+                          <span
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${intakeInfo.badgeClass}`}
+                          >
+                            {intakeInfo.label}
+                          </span>
                         </td>
                         <td className="py-3">
-                          {alreadyStored ? (
+                          {alreadyReceived ? (
                             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               Đã nhập kho

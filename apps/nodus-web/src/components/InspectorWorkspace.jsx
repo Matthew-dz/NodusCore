@@ -9,9 +9,9 @@ import {
   X,
 } from 'lucide-react';
 import {
-  getBatchStatusLabel,
-  getBatchStatusStyle,
   getInspectionResultLabel,
+  getInspectionStatusInfo,
+  getWarehouseIntakeStatusInfo,
 } from '../lib/statusLabels';
 import {
   fetchQualityWarehouseBatches,
@@ -45,6 +45,12 @@ export default function InspectorWorkspace({ user }) {
   const inFlightRef = useRef(false);
 
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) || null;
+  const selectedInspectionInfo = selectedBatch
+    ? getInspectionStatusInfo(selectedBatch.inspections)
+    : null;
+  const selectedIntakeInfo = selectedBatch
+    ? getWarehouseIntakeStatusInfo(selectedBatch.status)
+    : null;
 
   const loadBatches = useCallback(async () => {
     setLoadingList(true);
@@ -205,8 +211,8 @@ export default function InspectorWorkspace({ user }) {
                 <th className="whitespace-nowrap py-2 pr-3">Mã lô</th>
                 <th className="whitespace-nowrap py-2 pr-3">Nông sản</th>
                 <th className="whitespace-nowrap py-2 pr-3">Sản lượng</th>
-                <th className="whitespace-nowrap py-2 pr-3">Trạng thái</th>
-                <th className="whitespace-nowrap py-2 pr-3">Kiểm định gần nhất</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái kiểm định</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái nhập kho</th>
                 <th className="whitespace-nowrap py-2">Chọn</th>
               </tr>
             </thead>
@@ -223,7 +229,8 @@ export default function InspectorWorkspace({ user }) {
               ) : (
                 <>
                   {batches.map((b) => {
-                    const latest = b.inspections?.[0];
+                    const inspectionInfo = getInspectionStatusInfo(b.inspections);
+                    const intakeInfo = getWarehouseIntakeStatusInfo(b.status);
                     const isSelected = selectedBatch?.id === b.id;
                     return (
                       <tr key={b.id} className={isSelected ? 'bg-amber-50/70' : 'hover:bg-slate-50'}>
@@ -231,34 +238,22 @@ export default function InspectorWorkspace({ user }) {
                           {b.batch_code}
                         </td>
                         <td className="py-2.5 pr-3 font-medium text-slate-900">{b.product_name}</td>
-                        <td className="py-2.5 pr-3 text-xs text-slate-600">
+                        <td className="py-2.5 pr-3 whitespace-nowrap text-xs text-slate-600">
                           {b.quantity} {b.unit}
                         </td>
                         <td className="py-2.5 pr-3">
                           <span
-                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
-                              b.status
-                            )}`}
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${inspectionInfo.badgeClass}`}
                           >
-                            {getBatchStatusLabel(b.status)}
+                            {inspectionInfo.label}
                           </span>
                         </td>
                         <td className="py-2.5 pr-3">
-                          {latest ? (
-                            <span
-                              className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                latest.result === 'PASSED'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}
-                            >
-                              {getInspectionResultLabel(latest.result)}
-                            </span>
-                          ) : (
-                            <span className="whitespace-nowrap text-xs text-slate-400">
-                              Chưa kiểm định
-                            </span>
-                          )}
+                          <span
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${intakeInfo.badgeClass}`}
+                          >
+                            {intakeInfo.label}
+                          </span>
                         </td>
                         <td className="py-2.5">
                           <button
@@ -309,10 +304,18 @@ export default function InspectorWorkspace({ user }) {
                 <strong className="font-mono text-slate-900">{selectedBatch.batch_code}</strong> —{' '}
                 <strong className="text-slate-900">{selectedBatch.product_name}</strong>
               </div>
-              <div className="mt-1 text-slate-500">
-                Sản lượng: {selectedBatch.quantity} {selectedBatch.unit} • Trạng thái:{' '}
-                <span className="font-semibold text-slate-700">
-                  {getBatchStatusLabel(selectedBatch.status)}
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-slate-500">
+                <span>
+                  Sản lượng: {selectedBatch.quantity} {selectedBatch.unit}
+                </span>
+                <span>•</span>
+                <span>
+                  Kiểm định:{' '}
+                  <strong className="text-slate-700">{selectedInspectionInfo?.label}</strong>
+                </span>
+                <span>•</span>
+                <span>
+                  Nhập kho: <strong className="text-slate-700">{selectedIntakeInfo?.label}</strong>
                 </span>
               </div>
             </div>
