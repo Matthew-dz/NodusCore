@@ -1,0 +1,9 @@
+# Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
+
+apisix:
+  node_listen: 9080
+
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml

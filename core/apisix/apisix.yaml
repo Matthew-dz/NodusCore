@@ -1,0 +1,38 @@
+# Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
+
+routes:
+  - id: health-check
+    uri: /health
+    methods:
+      - GET
+    plugins:
+      mocking:
+        response_status: 200
+        content_type: "application/json"
+        response_example: '{"status": "ok", "system": "NodusCore DX-OS"}'
+
+  - id: hasura-data-api
+    uri: /api/data/*
+    plugins:
+      proxy-rewrite:
+        regex_uri:
+          - "^/api/data/?(.*)"
+          - "/$1"
+    upstream:
+      type: roundrobin
+      nodes:
+        "hasura:8080": 1
+
+  - id: n8n-workflow-api
+    uri: /api/workflow/*
+    plugins:
+      proxy-rewrite:
+        regex_uri:
+          - "^/api/workflow/?(.*)"
+          - "/$1"
+    upstream:
+      type: roundrobin
+      nodes:
+        "n8n:5678": 1
+
+#END

@@ -1,0 +1,112 @@
+# Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nodus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./core/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nodus-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: nodus-keycloak
+    restart: unless-stopped
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_PORT: 8080
+    ports:
+      - "8081:8080"
+    networks:
+      - nodus-net
+
+  hasura:
+    image: hasura/graphql-engine:v2.40.0
+    container_name: nodus-hasura
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+    ports:
+      - "8082:8080"
+    networks:
+      - nodus-net
+
+  minio:
+    image: pgsty/silo:latest
+    container_name: nodus-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - nodus-net
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: nodus-n8n
+    restart: unless-stopped
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+      GENERIC_TIMEZONE: ${TZ}
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - nodus-net
+
+  apisix:
+    image: apache/apisix:3.9.1-debian
+    container_name: nodus-apisix
+    restart: unless-stopped
+    depends_on:
+      - hasura
+      - n8n
+    volumes:
+      - ./core/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./core/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    ports:
+      - "9080:9080"
+    networks:
+      - nodus-net
+
+volumes:
+  postgres_data:
+  minio_data:
+  n8n_data:
+
+networks:
+  nodus-net:
+    driver: bridge
