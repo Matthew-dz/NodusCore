@@ -1,7 +1,23 @@
 // Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Clock, Hash, MapPin, Search, ShieldAlert, ShieldCheck, XCircle } from 'lucide-react';
+import {
+  CheckCircle2,
+  Clock,
+  Hash,
+  MapPin,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  XCircle,
+} from 'lucide-react';
 import { graphqlRequest } from '../lib/graphql';
+import {
+  getAuditActionLabel,
+  getBatchStatusLabel,
+  getEventTypeLabel,
+  getInspectionResultLabel,
+  getStageLabel,
+} from '../lib/statusLabels';
 
 const TRACE_QUERY = `
   query PublicTraceBatch($key: String!) {
@@ -13,6 +29,7 @@ const TRACE_QUERY = `
       quantity
       unit
       harvest_date
+      expiry_date
       status
       created_at
       tenant {
@@ -101,21 +118,22 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
           Cổng Tra Cứu Nguồn Gốc Nông Sản (Public Allowlist)
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Truy cập công khai không cần đăng nhập qua APISIX Allowlist (<code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">/api/trace/*</code>).
+          Truy cập công khai không cần đăng nhập qua APISIX Allowlist (
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">/api/trace/*</code>).
         </p>
 
-        <form onSubmit={handleSearch} className="mt-4 flex gap-2">
+        <form onSubmit={handleSearch} className="mt-4 flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             value={inputKey}
             onChange={(e) => setInputKey(e.target.value)}
             placeholder="Nhập mã QR / public_trace_key (ví dụ: TR-XXXXXXXX)..."
-            className="flex-1 rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
           />
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             <Search className="h-4 w-4" />
             {loading ? 'Đang tra cứu...' : 'Tra cứu'}
@@ -132,19 +150,20 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
 
       {batch && (
         <div className="space-y-6">
-          {/* Batch Origin Summary */}
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
-                <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                  {batch.status}
+                <span className="inline-flex items-center whitespace-nowrap rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                  {getBatchStatusLabel(batch.status)}
                 </span>
-                <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                  {batch.product_name}
-                </h2>
+                <h2 className="mt-2 text-2xl font-bold text-slate-900">{batch.product_name}</h2>
                 <p className="text-sm text-slate-500">
-                  Mã lô: <code className="font-mono font-semibold text-slate-700">{batch.batch_code}</code> • Khóa QR:{' '}
-                  <code className="font-mono font-semibold text-emerald-700">{batch.public_trace_key}</code>
+                  Mã lô:{' '}
+                  <code className="font-mono font-semibold text-slate-700">{batch.batch_code}</code>{' '}
+                  • Khóa QR:{' '}
+                  <code className="font-mono font-semibold text-emerald-700">
+                    {batch.public_trace_key}
+                  </code>
                 </p>
               </div>
               <div className="rounded-lg bg-slate-50 px-4 py-2 text-right">
@@ -165,10 +184,12 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                   {batch.production_zone?.name || 'Đang cập nhật'}
                 </div>
                 <div className="text-xs text-slate-600">
-                  Đơn vị: {batch.tenant?.name} • Chứng nhận: {batch.production_zone?.certification || 'VietGAP'}
+                  Đơn vị: {batch.tenant?.name} • Chứng nhận:{' '}
+                  {batch.production_zone?.certification || 'VietGAP'}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
-                  Ngày thu hoạch: {batch.harvest_date || 'Chưa ghi nhận'}
+                  Thu hoạch: {batch.harvest_date || 'Chưa ghi nhận'} • HSD:{' '}
+                  {batch.expiry_date || 'Chưa ghi nhận'}
                 </div>
               </div>
 
@@ -187,12 +208,16 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                       )}
                       <span
                         className={`text-sm font-bold ${
-                          latestInspection.result === 'PASSED' ? 'text-emerald-700' : 'text-rose-700'
+                          latestInspection.result === 'PASSED'
+                            ? 'text-emerald-700'
+                            : 'text-rose-700'
                         }`}
                       >
-                        {latestInspection.result}
+                        {getInspectionResultLabel(latestInspection.result)}
                       </span>
-                      <span className="text-xs text-slate-500">({latestInspection.inspection_code})</span>
+                      <span className="text-xs text-slate-500">
+                        ({latestInspection.inspection_code})
+                      </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-600">{latestInspection.notes}</p>
                   </div>
@@ -203,7 +228,6 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
             </div>
           </div>
 
-          {/* 5-Stage Timeline */}
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
               <Clock className="h-4 w-4 text-emerald-600" />
@@ -216,7 +240,7 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                     <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-emerald-600 ring-4 ring-white" />
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800">
-                        {ev.stage} — {ev.event_type}
+                        {getStageLabel(ev.stage)} — {getEventTypeLabel(ev.event_type)}
                       </span>
                       <span className="text-xs text-slate-500">
                         {new Date(ev.occurred_at).toLocaleString('vi-VN')}
@@ -229,11 +253,12 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                 ))}
               </ol>
             ) : (
-              <p className="mt-3 text-sm text-slate-500">Chưa có sự kiện vận chuyển nào được ghi nhận.</p>
+              <p className="mt-3 text-sm text-slate-500">
+                Chưa có sự kiện vận chuyển nào được ghi nhận.
+              </p>
             )}
           </div>
 
-          {/* Audit Hash SHA-256 */}
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
               <Hash className="h-4 w-4 text-indigo-600" />
@@ -247,7 +272,9 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                     className="flex flex-col justify-between gap-1 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs sm:flex-row sm:items-center"
                   >
                     <div>
-                      <span className="font-semibold text-slate-800">#{a.id} {a.action}</span>
+                      <span className="font-semibold text-slate-800">
+                        #{a.id} {getAuditActionLabel(a.action)}
+                      </span>
                       <span className="ml-2 text-slate-500">
                         {new Date(a.sealed_at).toLocaleString('vi-VN')}
                       </span>

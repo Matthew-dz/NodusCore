@@ -1,156 +1,81 @@
 // Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   Check,
   CheckCircle2,
   Copy,
+  Download,
   ExternalLink,
+  ImageDown,
   Loader2,
-  PlusCircle,
+  Printer,
+  QrCode,
   RefreshCw,
   RotateCcw,
+  Save,
   Sprout,
   X,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import {
-  computeSha256Hex,
-  DEFAULT_TENANT_UUID,
-  DEFAULT_ZONE_UUID,
-  graphqlRequest,
-} from '../lib/graphql';
-
-const LIST_BATCHES_QUERY = `
-  query FarmerBatches {
-    batches(order_by: { created_at: desc }, limit: 20) {
-      id
-      batch_code
-      public_trace_key
-      product_name
-      quantity
-      unit
-      harvest_date
-      status
-      created_at
-    }
-    production_zones {
-      id
-      zone_code
-      name
-    }
-  }
-`;
-
-const INSERT_BATCH_MUTATION = `
-  mutation CreateBatch(
-    $tenant_id: uuid!
-    $zone_id: uuid!
-    $batch_code: String!
-    $public_trace_key: String!
-    $product_name: String!
-    $quantity: numeric!
-    $unit: String!
-    $harvest_date: date
-  ) {
-    insert_batches_one(
-      object: {
-        tenant_id: $tenant_id
-        zone_id: $zone_id
-        batch_code: $batch_code
-        public_trace_key: $public_trace_key
-        product_name: $product_name
-        quantity: $quantity
-        unit: $unit
-        harvest_date: $harvest_date
-        status: "HARVESTED"
-      }
-    ) {
-      id
-      batch_code
-      public_trace_key
-      product_name
-      quantity
-      unit
-      harvest_date
-      status
-    }
-  }
-`;
-
-const INSERT_EVENT_AND_AUDIT = `
-  mutation LogBatchCreation(
-    $tenant_id: uuid!
-    $batch_id: uuid!
-    $location: String
-    $payload: jsonb!
-    $data_snapshot: jsonb!
-    $sha256_hash: bpchar!
-  ) {
-    insert_batch_events_one(
-      object: {
-        tenant_id: $tenant_id
-        batch_id: $batch_id
-        stage: "HARVEST"
-        event_type: "BATCH_CREATED"
-        location: $location
-        payload: $payload
-      }
-    ) {
-      id
-    }
-    insert_batch_audit_trail_one(
-      object: {
-        tenant_id: $tenant_id
-        batch_id: $batch_id
-        action: "BATCH_CREATED"
-        data_snapshot: $data_snapshot
-        sha256_hash: $sha256_hash
-      }
-    ) {
-      id
-    }
-  }
-`;
+import { DEFAULT_TENANT_UUID, DEFAULT_ZONE_UUID } from '../lib/graphql';
+import { getBatchStatusLabel, getBatchStatusStyle } from '../lib/statusLabels';
+import { createFarmerBatch, fetchFarmerWorkspaceData } from '../services/farmerBatchService';
 
 const UNIT_SUGGESTIONS = ['kg', 'tấn', 'tạ', 'thùng', 'giỏ', 'bó'];
-
-const STATUS_BADGE_STYLES = {
-  CREATED: 'bg-slate-100 text-slate-700 border-slate-200',
-  HARVESTED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  INSPECTING: 'bg-amber-50 text-amber-700 border-amber-200',
-  IN_STORAGE: 'bg-sky-50 text-sky-700 border-sky-200',
-  DISTRIBUTING: 'bg-purple-50 text-purple-700 border-purple-200',
-  SOLD: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-};
 
 function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function validateBatchForm({ zoneId, productName, harvestDate, quantity, unit }) {
+function getDefaultExpiryIsoDate(daysAhead = 7) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  return d.toISOString().slice(0, 10);
+}
+
+function validateBatchForm({
+  tenantId,
+  zoneId,
+  productName,
+  harvestDate,
+  expiryDate,
+  quantity,
+  unit,
+}) {
   const errors = {};
   const trimmedName = productName.trim();
   const trimmedUnit = unit.trim();
   const numericQty = Number(quantity);
+
+  if (!tenantId) {
+    errors.tenantId = 'Vui lòng chọn Hợp tác xã.';
+  }
 
   if (!zoneId) {
     errors.zoneId = 'Vui lòng chọn vùng trồng.';
   }
 
   if (!trimmedName) {
-    errors.productName = 'Vui lòng nhập tên loại nông sản.';
+    errors.productName = 'Vui lòng nhập tên cây trồng.';
   } else if (trimmedName.length < 2) {
-    errors.productName = 'Tên nông sản phải có ít nhất 2 ký tự.';
+    errors.productName = 'Tên cây trồng phải có ít nhất 2 ký tự.';
   } else if (trimmedName.length > 255) {
-    errors.productName = 'Tên nông sản tối đa 255 ký tự.';
+    errors.productName = 'Tên cây trồng tối đa 255 ký tự.';
   }
 
   if (!harvestDate) {
     errors.harvestDate = 'Vui lòng chọn ngày thu hoạch.';
   } else if (Number.isNaN(Date.parse(harvestDate))) {
     errors.harvestDate = 'Ngày thu hoạch không hợp lệ.';
+  }
+
+  if (!expiryDate) {
+    errors.expiryDate = 'Vui lòng chọn ngày hết hạn.';
+  } else if (Number.isNaN(Date.parse(expiryDate))) {
+    errors.expiryDate = 'Ngày hết hạn không hợp lệ.';
+  } else if (harvestDate && expiryDate < harvestDate) {
+    errors.expiryDate = 'Ngày hết hạn phải lớn hơn hoặc bằng ngày thu hoạch.';
   }
 
   if (quantity === '' || quantity === null || quantity === undefined) {
@@ -164,9 +89,9 @@ function validateBatchForm({ zoneId, productName, harvestDate, quantity, unit })
   }
 
   if (!trimmedUnit) {
-    errors.unit = 'Vui lòng nhập ĐVT.';
+    errors.unit = 'Vui lòng nhập đơn vị tính.';
   } else if (trimmedUnit.length > 32) {
-    errors.unit = 'ĐVT tối đa 32 ký tự.';
+    errors.unit = 'Đơn vị tính tối đa 32 ký tự.';
   }
 
   return errors;
@@ -175,43 +100,72 @@ function validateBatchForm({ zoneId, productName, harvestDate, quantity, unit })
 export default function FarmerWorkspace({ user, onNavigate }) {
   const [productName, setProductName] = useState('Xoài Cát Chu');
   const [harvestDate, setHarvestDate] = useState(getTodayIsoDate);
+  const [expiryDate, setExpiryDate] = useState(() => getDefaultExpiryIsoDate(7));
   const [quantity, setQuantity] = useState('500');
   const [unit, setUnit] = useState('kg');
+  const [tenantId, setTenantId] = useState(DEFAULT_TENANT_UUID);
   const [zoneId, setZoneId] = useState(DEFAULT_ZONE_UUID);
+  const [tenants, setTenants] = useState([]);
   const [zones, setZones] = useState([]);
   const [batches, setBatches] = useState([]);
   const [createdBatch, setCreatedBatch] = useState(null);
-  const [copiedTraceKey, setCopiedTraceKey] = useState(false);
+  const [auditWarning, setAuditWarning] = useState('');
+  const [copiedField, setCopiedField] = useState('');
   const [loadingList, setLoadingList] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [loadError, setLoadError] = useState('');
 
+  const tenantMap = useMemo(() => {
+    const map = {};
+    for (const t of tenants) {
+      map[t.id] = t;
+    }
+    return map;
+  }, [tenants]);
+
+  const filteredZones = useMemo(() => {
+    if (!zones.length) return [];
+    const matching = zones.filter((z) => z.tenant_id === tenantId);
+    return matching.length > 0 ? matching : zones;
+  }, [zones, tenantId]);
+
   const loadData = useCallback(async () => {
     setLoadingList(true);
     setLoadError('');
     try {
-      const data = await graphqlRequest({
-        query: LIST_BATCHES_QUERY,
+      const data = await fetchFarmerWorkspaceData({
         token: user.token,
         role: user.role,
       });
-      setBatches(data.batches || []);
-      if (data.production_zones?.length) {
-        setZones(data.production_zones);
-        setZoneId((prev) =>
-          data.production_zones.some((z) => z.id === prev)
-            ? prev
-            : data.production_zones[0].id
-        );
+      setBatches(data.batches);
+      setTenants(data.tenants);
+      setZones(data.zones);
+
+      let resolvedTenantId = tenantId;
+      if (data.tenants.length > 0) {
+        const matchedTenant =
+          data.tenants.find((t) => t.id === tenantId) ||
+          data.tenants.find((t) => t.code === user.tenantId) ||
+          data.tenants[0];
+        resolvedTenantId = matchedTenant.id;
+        setTenantId(resolvedTenantId);
+      }
+
+      if (data.zones.length > 0) {
+        setZoneId((prev) => {
+          if (data.zones.some((z) => z.id === prev)) return prev;
+          const zoneForTenant = data.zones.find((z) => z.tenant_id === resolvedTenantId);
+          return (zoneForTenant || data.zones[0]).id;
+        });
       }
     } catch (err) {
       setLoadError(`Không tải được danh sách lô hàng: ${err.message}`);
     } finally {
       setLoadingList(false);
     }
-  }, [user.token, user.role]);
+  }, [user.token, user.role, user.tenantId]);
 
   useEffect(() => {
     loadData();
@@ -227,84 +181,195 @@ export default function FarmerWorkspace({ user, onNavigate }) {
     }
   };
 
-  const handleReset = () => {
+  const resetFormFields = () => {
     setProductName('');
     setHarvestDate(getTodayIsoDate());
+    setExpiryDate('');
     setQuantity('');
     setUnit('kg');
-    setZoneId(zones[0]?.id || DEFAULT_ZONE_UUID);
     setFieldErrors({});
-    setSubmitError('');
   };
 
-  const handleCopyTraceKey = async (traceKey) => {
+  const handleReset = () => {
+    resetFormFields();
+    const defaultTenant = tenants.find((t) => t.code === user.tenantId) || tenants[0];
+    const nextTenantId = defaultTenant?.id || DEFAULT_TENANT_UUID;
+    setTenantId(nextTenantId);
+    const firstZone = zones.find((z) => z.tenant_id === nextTenantId) || zones[0];
+    setZoneId(firstZone?.id || DEFAULT_ZONE_UUID);
+    setSubmitError('');
+    setAuditWarning('');
+  };
+
+  const handleTenantChange = (nextTenantId) => {
+    setTenantId(nextTenantId);
+    clearFieldError('tenantId');
+    const zoneForTenant = zones.find((z) => z.tenant_id === nextTenantId);
+    if (zoneForTenant) {
+      setZoneId(zoneForTenant.id);
+      clearFieldError('zoneId');
+    }
+  };
+
+  const handleZoneChange = (nextZoneId) => {
+    setZoneId(nextZoneId);
+    clearFieldError('zoneId');
+    const selectedZone = zones.find((z) => z.id === nextZoneId);
+    if (selectedZone?.tenant_id) {
+      setTenantId(selectedZone.tenant_id);
+      clearFieldError('tenantId');
+    }
+  };
+
+  const handleCopyValue = async (field, text) => {
     try {
-      await navigator.clipboard?.writeText(traceKey);
-      setCopiedTraceKey(true);
-      setTimeout(() => setCopiedTraceKey(false), 2000);
+      await navigator.clipboard?.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(''), 2000);
     } catch {
       // Clipboard API may be unavailable in restricted contexts.
     }
   };
 
+  const downloadQrSvg = (traceKey) => {
+    const svgEl = document.getElementById(`farmer-qr-svg-${traceKey}`);
+    if (!svgEl) return;
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `nodus-qr-${traceKey}.svg`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadQrPng = (traceKey) => {
+    const svgEl = document.getElementById(`farmer-qr-svg-${traceKey}`);
+    if (!svgEl) return;
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(svgUrl);
+      canvas.toBlob((pngBlob) => {
+        if (!pngBlob) return;
+        const pngUrl = URL.createObjectURL(pngBlob);
+        const link = document.createElement('a');
+        link.href = pngUrl;
+        link.download = `nodus-qr-${traceKey}.png`;
+        link.click();
+        URL.revokeObjectURL(pngUrl);
+      }, 'image/png');
+    };
+    img.src = svgUrl;
+  };
+
+  const printQrLabel = (batch) => {
+    const svgEl = document.getElementById(`farmer-qr-svg-${batch.public_trace_key}`);
+    if (!svgEl) return;
+    const svgMarkup = new XMLSerializer().serializeToString(svgEl);
+    const printWin = window.open('', '_blank', 'width=480,height=640');
+    if (!printWin) {
+      window.print();
+      return;
+    }
+
+    const labelUrl = `${window.location.origin}/trace/${batch.public_trace_key}`;
+    const escapeHtml = (v) =>
+      String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    printWin.document.open();
+    printWin.document.write(`<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nhãn QR - ${escapeHtml(batch.batch_code)}</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+      .label { max-width: 360px; margin: 0 auto; border: 2px solid #0f172a; border-radius: 12px; padding: 18px; text-align: center; }
+      .brand { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #059669; text-transform: uppercase; }
+      h1 { font-size: 18px; margin: 6px 0 12px; }
+      .qr { display: inline-block; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+      .meta { text-align: left; margin-top: 14px; font-size: 12px; line-height: 1.6; border-top: 1px dashed #cbd5e1; padding-top: 10px; }
+      .mono { font-family: monospace; font-weight: 700; }
+      @media print { body { margin: 0; } }
+    </style>
+  </head>
+  <body>
+    <div class="label">
+      <div class="brand">NodusCore DX-OS • Truy xuất nguồn gốc</div>
+      <h1>${escapeHtml(batch.product_name)}</h1>
+      <div class="qr">${svgMarkup}</div>
+      <div class="meta">
+        <div>Mã lô: <span class="mono">${escapeHtml(batch.batch_code)}</span></div>
+        <div>Trace Key: <span class="mono">${escapeHtml(batch.public_trace_key)}</span></div>
+        <div>Sản lượng: <strong>${escapeHtml(batch.quantity)} ${escapeHtml(batch.unit)}</strong></div>
+        <div>Thu hoạch: ${escapeHtml(batch.harvest_date || '—')}</div>
+        <div>Hết hạn: ${escapeHtml(batch.expiry_date || '—')}</div>
+        <div style="margin-top:6px;font-size:10px;word-break:break-all;">${escapeHtml(labelUrl)}</div>
+      </div>
+    </div>
+    <script>window.onload = function(){ window.print(); };</script>
+  </body>
+</html>`);
+    printWin.document.close();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
+    setAuditWarning('');
 
-    const errors = validateBatchForm({ zoneId, productName, harvestDate, quantity, unit });
+    const errors = validateBatchForm({
+      tenantId,
+      zoneId,
+      productName,
+      harvestDate,
+      expiryDate,
+      quantity,
+      unit,
+    });
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
     }
 
+    const selectedZone = zones.find((z) => z.id === zoneId);
+    const resolvedTenantId = selectedZone?.tenant_id || tenantId || DEFAULT_TENANT_UUID;
     setSubmitting(true);
     try {
-      const batchCode = `LOT-${Date.now().toString(36).toUpperCase()}`;
-      const traceKey = `TR-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-
-      const res = await graphqlRequest({
-        query: INSERT_BATCH_MUTATION,
-        variables: {
-          tenant_id: DEFAULT_TENANT_UUID,
-          zone_id: zoneId,
-          batch_code: batchCode,
-          public_trace_key: traceKey,
-          product_name: productName.trim(),
-          quantity: Number(quantity),
-          unit: unit.trim() || 'kg',
-          harvest_date: harvestDate || null,
-        },
+      const result = await createFarmerBatch({
         token: user.token,
         role: user.role,
+        tenantId: resolvedTenantId,
+        zoneId,
+        zoneName: selectedZone?.name,
+        productName,
+        harvestDate,
+        expiryDate,
+        quantity,
+        unit,
+        actorUsername: user.username,
       });
 
-      const batch = res.insert_batches_one;
-      const snapshot = {
-        batch_code: batch.batch_code,
-        public_trace_key: batch.public_trace_key,
-        product_name: batch.product_name,
-        quantity: batch.quantity,
-        unit: batch.unit,
-        actor: user.username,
-      };
-      const sha256 = await computeSha256Hex(snapshot);
-
-      await graphqlRequest({
-        query: INSERT_EVENT_AND_AUDIT,
-        variables: {
-          tenant_id: DEFAULT_TENANT_UUID,
-          batch_id: batch.id,
-          location: zones.find((z) => z.id === zoneId)?.name || 'Vùng trồng Hòa Vang',
-          payload: snapshot,
-          data_snapshot: snapshot,
-          sha256_hash: sha256,
-        },
-        token: user.token,
-        role: user.role,
-      });
-
-      setCreatedBatch(batch);
-      setCopiedTraceKey(false);
+      setCreatedBatch(result.batch);
+      setAuditWarning(result.auditWarning || '');
+      setCopiedField('');
+      resetFormFields();
       await loadData();
     } catch (err) {
       setSubmitError(`Lỗi tạo lô hàng: ${err.message}`);
@@ -355,6 +420,41 @@ export default function FarmerWorkspace({ user, onNavigate }) {
           <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-4">
             <div>
               <label
+                htmlFor="farmer-tenant"
+                className="block text-xs font-semibold text-slate-700"
+              >
+                Hợp tác xã (Tenants) <span className="text-rose-600">*</span>
+              </label>
+              <select
+                id="farmer-tenant"
+                value={tenantId}
+                disabled={submitting}
+                aria-invalid={Boolean(fieldErrors.tenantId)}
+                aria-describedby={fieldErrors.tenantId ? 'farmer-tenant-error' : undefined}
+                onChange={(e) => handleTenantChange(e.target.value)}
+                className={inputClassName(Boolean(fieldErrors.tenantId))}
+              >
+                {tenants.length > 0 ? (
+                  tenants.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.code})
+                    </option>
+                  ))
+                ) : (
+                  <option value={DEFAULT_TENANT_UUID}>
+                    HTX Nông nghiệp Hòa Vang - Đà Nẵng (htx-danang)
+                  </option>
+                )}
+              </select>
+              {fieldErrors.tenantId && (
+                <p id="farmer-tenant-error" className="mt-1 text-xs text-rose-600">
+                  {fieldErrors.tenantId}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label
                 htmlFor="farmer-zone"
                 className="block text-xs font-semibold text-slate-700"
               >
@@ -366,20 +466,23 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                 disabled={submitting}
                 aria-invalid={Boolean(fieldErrors.zoneId)}
                 aria-describedby={fieldErrors.zoneId ? 'farmer-zone-error' : undefined}
-                onChange={(e) => {
-                  setZoneId(e.target.value);
-                  clearFieldError('zoneId');
-                }}
+                onChange={(e) => handleZoneChange(e.target.value)}
                 className={inputClassName(Boolean(fieldErrors.zoneId))}
               >
-                {zones.length > 0 ? (
-                  zones.map((z) => (
-                    <option key={z.id} value={z.id}>
-                      {z.zone_code} — {z.name}
-                    </option>
-                  ))
+                {filteredZones.length > 0 ? (
+                  filteredZones.map((z) => {
+                    const htxName = tenantMap[z.tenant_id]?.name;
+                    return (
+                      <option key={z.id} value={z.id}>
+                        {z.zone_code} — {z.name}
+                        {htxName ? ` (${htxName})` : ''}
+                      </option>
+                    );
+                  })
                 ) : (
-                  <option value={DEFAULT_ZONE_UUID}>ZONE-DN-01 — Vùng trồng Hòa Vang</option>
+                  <option value={DEFAULT_ZONE_UUID}>
+                    ZONE-DN-01 — Vùng trồng Hòa Vang - Đà Nẵng
+                  </option>
                 )}
               </select>
               {fieldErrors.zoneId && (
@@ -394,7 +497,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                 htmlFor="farmer-product-name"
                 className="block text-xs font-semibold text-slate-700"
               >
-                Tên loại nông sản <span className="text-rose-600">*</span>
+                Tên cây trồng <span className="text-rose-600">*</span>
               </label>
               <input
                 id="farmer-product-name"
@@ -424,7 +527,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               <div>
                 <label
                   htmlFor="farmer-harvest-date"
-                  className="block text-xs font-semibold text-slate-700"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
                 >
                   Ngày thu hoạch <span className="text-rose-600">*</span>
                 </label>
@@ -440,6 +543,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   onChange={(e) => {
                     setHarvestDate(e.target.value);
                     clearFieldError('harvestDate');
+                    clearFieldError('expiryDate');
                   }}
                   className={inputClassName(Boolean(fieldErrors.harvestDate))}
                 />
@@ -450,76 +554,103 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <label
-                    htmlFor="farmer-quantity"
-                    className="block text-xs font-semibold text-slate-700"
-                  >
-                    Sản lượng <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    id="farmer-quantity"
-                    type="number"
-                    min="0.001"
-                    step="any"
-                    disabled={submitting}
-                    value={quantity}
-                    placeholder="500"
-                    aria-invalid={Boolean(fieldErrors.quantity)}
-                    aria-describedby={
-                      fieldErrors.quantity ? 'farmer-quantity-error' : undefined
-                    }
-                    onChange={(e) => {
-                      setQuantity(e.target.value);
-                      clearFieldError('quantity');
-                    }}
-                    className={inputClassName(Boolean(fieldErrors.quantity))}
-                  />
-                  {fieldErrors.quantity && (
-                    <p id="farmer-quantity-error" className="mt-1 text-xs text-rose-600">
-                      {fieldErrors.quantity}
-                    </p>
-                  )}
-                </div>
+              <div>
+                <label
+                  htmlFor="farmer-expiry-date"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
+                >
+                  Ngày hết hạn <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="farmer-expiry-date"
+                  type="date"
+                  min={harvestDate || undefined}
+                  disabled={submitting}
+                  value={expiryDate}
+                  aria-invalid={Boolean(fieldErrors.expiryDate)}
+                  aria-describedby={
+                    fieldErrors.expiryDate ? 'farmer-expiry-date-error' : undefined
+                  }
+                  onChange={(e) => {
+                    setExpiryDate(e.target.value);
+                    clearFieldError('expiryDate');
+                  }}
+                  className={inputClassName(Boolean(fieldErrors.expiryDate))}
+                />
+                {fieldErrors.expiryDate && (
+                  <p id="farmer-expiry-date-error" className="mt-1 text-xs text-rose-600">
+                    {fieldErrors.expiryDate}
+                  </p>
+                )}
+              </div>
+            </div>
 
-                <div>
-                  <label
-                    htmlFor="farmer-unit"
-                    className="block text-xs font-semibold text-slate-700"
-                  >
-                    ĐVT <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    id="farmer-unit"
-                    type="text"
-                    list="farmer-unit-options"
-                    maxLength={32}
-                    disabled={submitting}
-                    value={unit}
-                    placeholder="kg"
-                    aria-invalid={Boolean(fieldErrors.unit)}
-                    aria-describedby={fieldErrors.unit ? 'farmer-unit-error' : undefined}
-                    onChange={(e) => {
-                      setUnit(e.target.value);
-                      clearFieldError('unit');
-                    }}
-                    className={inputClassName(Boolean(fieldErrors.unit)).replace(
-                      'px-3',
-                      'px-2'
-                    )}
-                  />
-                  <datalist id="farmer-unit-options">
-                    {UNIT_SUGGESTIONS.map((item) => (
-                      <option key={item} value={item} />
-                    ))}
-                  </datalist>
-                  {fieldErrors.unit && (
-                    <p id="farmer-unit-error" className="mt-1 text-xs text-rose-600">
-                      {fieldErrors.unit}
-                    </p>
-                  )}
-                </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+              <div className="sm:col-span-7">
+                <label
+                  htmlFor="farmer-quantity"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
+                >
+                  Sản lượng <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="farmer-quantity"
+                  type="number"
+                  min="0.001"
+                  step="any"
+                  disabled={submitting}
+                  value={quantity}
+                  placeholder="500"
+                  aria-invalid={Boolean(fieldErrors.quantity)}
+                  aria-describedby={
+                    fieldErrors.quantity ? 'farmer-quantity-error' : undefined
+                  }
+                  onChange={(e) => {
+                    setQuantity(e.target.value);
+                    clearFieldError('quantity');
+                  }}
+                  className={inputClassName(Boolean(fieldErrors.quantity))}
+                />
+                {fieldErrors.quantity && (
+                  <p id="farmer-quantity-error" className="mt-1 text-xs text-rose-600">
+                    {fieldErrors.quantity}
+                  </p>
+                )}
+              </div>
+
+              <div className="sm:col-span-5">
+                <label
+                  htmlFor="farmer-unit"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
+                >
+                  Đơn vị tính <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="farmer-unit"
+                  type="text"
+                  list="farmer-unit-options"
+                  maxLength={32}
+                  disabled={submitting}
+                  value={unit}
+                  placeholder="kg"
+                  aria-invalid={Boolean(fieldErrors.unit)}
+                  aria-describedby={fieldErrors.unit ? 'farmer-unit-error' : undefined}
+                  onChange={(e) => {
+                    setUnit(e.target.value);
+                    clearFieldError('unit');
+                  }}
+                  className={inputClassName(Boolean(fieldErrors.unit))}
+                />
+                <datalist id="farmer-unit-options">
+                  {UNIT_SUGGESTIONS.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
+                {fieldErrors.unit && (
+                  <p id="farmer-unit-error" className="mt-1 text-xs text-rose-600">
+                    {fieldErrors.unit}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -552,9 +683,9 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <PlusCircle className="h-4 w-4" />
+                  <Save className="h-4 w-4" />
                 )}
-                {submitting ? 'Đang tạo lô...' : 'Tạo lô hàng'}
+                {submitting ? 'Đang lưu lô hàng...' : 'Lưu & Tạo lô hàng'}
               </button>
 
               <button
@@ -578,7 +709,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
-                Đã tạo lô thành công & Sinh mã QR
+                Đã lưu lô thành công & Sinh mã QR
               </div>
               <button
                 type="button"
@@ -590,15 +721,47 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               </button>
             </div>
 
-            <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row">
-              <div className="rounded-lg border border-emerald-200 bg-white p-3">
-                <QRCodeSVG value={traceUrl} size={112} />
+            {auditWarning && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+                {auditWarning}
               </div>
-              <div className="min-w-0 flex-1 space-y-1.5 text-sm">
-                <div className="font-bold text-slate-900">{createdBatch.product_name}</div>
-                <div className="text-xs text-slate-600">
-                  Mã lô: <code className="font-mono font-semibold">{createdBatch.batch_code}</code>
+            )}
+
+            <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+              <div className="shrink-0 rounded-xl border border-emerald-200 bg-white p-2.5 shadow-sm">
+                <QRCodeSVG
+                  id={`farmer-qr-svg-${createdBatch.public_trace_key}`}
+                  value={traceUrl}
+                  size={156}
+                  level="M"
+                  includeMargin
+                />
+              </div>
+
+              <div className="min-w-0 flex-1 space-y-2 text-sm">
+                <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <QrCode className="h-4 w-4 text-emerald-600" />
+                  <span>{createdBatch.product_name}</span>
                 </div>
+
+                <div className="text-xs text-slate-600">
+                  Sản lượng:{' '}
+                  <span className="font-semibold text-slate-900">
+                    {createdBatch.quantity} {createdBatch.unit}
+                  </span>
+                  {' • '}HSD:{' '}
+                  <span className="font-semibold text-slate-800">
+                    {createdBatch.expiry_date || '—'}
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-600">
+                  Mã lô:{' '}
+                  <code className="font-mono font-semibold text-slate-900">
+                    {createdBatch.batch_code}
+                  </code>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
                   <span>Trace Key:</span>
                   <code className="font-mono font-semibold text-emerald-700">
@@ -606,10 +769,10 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   </code>
                   <button
                     type="button"
-                    onClick={() => handleCopyTraceKey(createdBatch.public_trace_key)}
+                    onClick={() => handleCopyValue('traceKey', createdBatch.public_trace_key)}
                     className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                   >
-                    {copiedTraceKey ? (
+                    {copiedField === 'traceKey' ? (
                       <>
                         <Check className="h-3 w-3" />
                         Đã chép
@@ -622,10 +785,42 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                     )}
                   </button>
                 </div>
+
+                <div className="rounded-lg border border-emerald-200/80 bg-white/90 p-2 text-[11px] text-slate-600 break-all">
+                  {traceUrl}
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => downloadQrPng(createdBatch.public_trace_key)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                  >
+                    <ImageDown className="h-3.5 w-3.5" />
+                    Tải PNG
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadQrSvg(createdBatch.public_trace_key)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Tải SVG
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => printQrLabel(createdBatch)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    In nhãn
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => onNavigate(`/trace/${createdBatch.public_trace_key}`)}
-                  className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
+                  className="inline-flex items-center gap-1 pt-0.5 text-xs font-semibold text-emerald-700 hover:underline"
                 >
                   Mở trang tra cứu /trace/{createdBatch.public_trace_key}
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -683,12 +878,12 @@ export default function FarmerWorkspace({ user, onNavigate }) {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                <th className="py-2 pr-3">Mã lô</th>
-                <th className="py-2 pr-3">Nông sản</th>
-                <th className="py-2 pr-3">Thu hoạch</th>
-                <th className="py-2 pr-3">Sản lượng</th>
-                <th className="py-2 pr-3">Trạng thái</th>
-                <th className="py-2">Trace Key</th>
+                <th className="whitespace-nowrap py-2 pr-3">Mã lô</th>
+                <th className="whitespace-nowrap py-2 pr-3">Cây trồng</th>
+                <th className="whitespace-nowrap py-2 pr-3">Thu hoạch / HSD</th>
+                <th className="whitespace-nowrap py-2 pr-3">Sản lượng</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái</th>
+                <th className="whitespace-nowrap py-2">Trace Key</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -710,19 +905,21 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                       </td>
                       <td className="py-2.5 pr-3 font-medium text-slate-900">{b.product_name}</td>
                       <td className="py-2.5 pr-3 text-xs text-slate-500">
-                        {b.harvest_date || '—'}
+                        <div>{b.harvest_date || '—'}</div>
+                        <div className="text-[11px] text-slate-400">
+                          HSD: {b.expiry_date || '—'}
+                        </div>
                       </td>
                       <td className="py-2.5 pr-3 text-slate-600">
                         {b.quantity} {b.unit}
                       </td>
                       <td className="py-2.5 pr-3">
                         <span
-                          className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                            STATUS_BADGE_STYLES[b.status] ||
-                            'border-slate-200 bg-slate-100 text-slate-700'
-                          }`}
+                          className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
+                            b.status
+                          )}`}
                         >
-                          {b.status}
+                          {getBatchStatusLabel(b.status)}
                         </span>
                       </td>
                       <td className="py-2.5">

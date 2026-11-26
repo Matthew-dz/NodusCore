@@ -1,303 +1,463 @@
 // Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
-import { useEffect, useState } from 'react';
-import { ClipboardCheck } from 'lucide-react';
-import { computeSha256Hex, DEFAULT_TENANT_UUID, graphqlRequest } from '../lib/graphql';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ClipboardCheck,
+  Loader2,
+  RefreshCw,
+  X,
+} from 'lucide-react';
+import {
+  getBatchStatusLabel,
+  getBatchStatusStyle,
+  getInspectionResultLabel,
+} from '../lib/statusLabels';
+import {
+  fetchQualityWarehouseBatches,
+  submitBatchInspection,
+} from '../services/qualityWarehouseService';
 
-const INSPECTOR_BATCHES_QUERY = `
-  query InspectorBatches {
-    batches(order_by: { created_at: desc }, limit: 30) {
-      id
-      batch_code
-      product_name
-      quantity
-      unit
-      status
-      inspections(order_by: { inspected_at: desc }, limit: 1) {
-        id
-        inspection_code
-        result
-        notes
-        inspected_at
-      }
-    }
+function validateInspectionForm({ agency, metrics }) {
+  const errors = {};
+  if (!agency.trim()) {
+    errors.agency = 'Vui lòng nhập đơn vị kiểm định.';
   }
-`;
-
-const INSERT_INSPECTION_MUTATION = `
-  mutation CreateInspection(
-    $tenant_id: uuid!
-    $batch_id: uuid!
-    $inspection_code: String!
-    $result: String!
-    $notes: String!
-    $batch_status: String!
-    $payload: jsonb!
-    $sha256_hash: bpchar!
-  ) {
-    insert_inspections_one(
-      object: {
-        tenant_id: $tenant_id
-        batch_id: $batch_id
-        inspection_code: $inspection_code
-        result: $result
-        notes: $notes
-        minio_report_path: "s3://nodus-inspections/demo-report.pdf"
-      }
-    ) {
-      id
-      inspection_code
-      result
-    }
-    update_batches_by_pk(
-      pk_columns: { id: $batch_id }
-      _set: { status: $batch_status }
-    ) {
-      id
-      status
-    }
-    insert_batch_events_one(
-      object: {
-        tenant_id: $tenant_id
-        batch_id: $batch_id
-        stage: "INSPECTION"
-        event_type: "QUALITY_INSPECTED"
-        location: "Trung tâm Kiểm định Chất lượng"
-        payload: $payload
-      }
-    ) {
-      id
-    }
-    insert_batch_audit_trail_one(
-      object: {
-        tenant_id: $tenant_id
-        batch_id: $batch_id
-        action: "INSPECTION_RECORDED"
-        data_snapshot: $payload
-        sha256_hash: $sha256_hash
-      }
-    ) {
-      id
-    }
+  if (!metrics.trim()) {
+    errors.metrics = 'Vui lòng nhập chỉ số kiểm nghiệm.';
   }
-`;
+  return errors;
+}
 
 export default function InspectorWorkspace({ user }) {
   const [batches, setBatches] = useState([]);
-  const [selectedBatch, setSelectedBatch] = useState(null);
+  const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [result, setResult] = useState('PASSED');
   const [agency, setAgency] = useState('Trung tâm Kiểm định Nông sản Đà Nẵng');
   const [metrics, setMetrics] = useState('Brix: 14.5%, Dư lượng BVTV: Không phát hiện');
   const [notes, setNotes] = useState('Đạt tiêu chuẩn VietGAP xuất kho.');
+  const [loadingList, setLoadingList] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const inFlightRef = useRef(false);
 
-  const loadBatches = async () => {
+  const selectedBatch = batches.find((b) => b.id === selectedBatchId) || null;
+
+  const loadBatches = useCallback(async () => {
+    setLoadingList(true);
+    setLoadError('');
     try {
-      const data = await graphqlRequest({
-        query: INSPECTOR_BATCHES_QUERY,
+      const list = await fetchQualityWarehouseBatches({
         token: user.token,
         role: user.role,
       });
-      setBatches(data.batches || []);
-      if (!selectedBatch && data.batches?.length) {
-        setSelectedBatch(data.batches[0]);
-      }
+      setBatches(list);
+      setSelectedBatchId((prevId) => {
+        if (prevId && list.some((item) => item.id === prevId)) {
+          return prevId;
+        }
+        return list[0]?.id || null;
+      });
     } catch (err) {
-      setError(err.message);
+      setLoadError(`Không tải được danh sách lô hàng: ${err.message}`);
+    } finally {
+      setLoadingList(false);
     }
-  };
+  }, [user.token, user.role]);
 
   useEffect(() => {
     loadBatches();
-  }, [user.token]);
+  }, [loadBatches]);
+
+  const clearFieldError = (field) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
+  const handleSelectBatch = (batch) => {
+    setSelectedBatchId(batch.id);
+    setSubmitError('');
+    setMessage('');
+    setFieldErrors({});
+  };
 
   const handleInspect = async (e) => {
     e.preventDefault();
-    if (!selectedBatch) return;
-    setSubmitting(true);
+    if (!selectedBatch || inFlightRef.current) return;
+
     setMessage('');
-    setError('');
+    setSubmitError('');
+    const errors = validateInspectionForm({ agency, metrics });
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    inFlightRef.current = true;
+    setSubmitting(true);
     try {
-      const inspectionCode = `INSP-${Date.now().toString(36).toUpperCase()}`;
-      const combinedNotes = `[Đơn vị: ${agency}] [Chỉ số: ${metrics}] ${notes}`;
-      const payload = {
-        batch_code: selectedBatch.batch_code,
-        inspection_code: inspectionCode,
+      const { inspection, updatedBatch } = await submitBatchInspection({
+        token: user.token,
+        role: user.role,
+        batch: selectedBatch,
         result,
         agency,
         metrics,
-        inspector: user.username,
-      };
-      const sha256 = await computeSha256Hex(payload);
-
-      await graphqlRequest({
-        query: INSERT_INSPECTION_MUTATION,
-        variables: {
-          tenant_id: DEFAULT_TENANT_UUID,
-          batch_id: selectedBatch.id,
-          inspection_code: inspectionCode,
-          result,
-          notes: combinedNotes,
-          batch_status: result === 'PASSED' ? 'INSPECTING' : 'REJECTED',
-          payload,
-          sha256_hash: sha256,
-        },
-        token: user.token,
-        role: user.role,
+        notes,
+        actorUsername: user.username,
       });
 
-      setMessage(`Đã lưu phiếu kiểm định ${inspectionCode} (${result}) cho lô ${selectedBatch.batch_code}.`);
+      setBatches((prev) =>
+        prev.map((item) =>
+          item.id === selectedBatch.id
+            ? {
+                ...item,
+                status: updatedBatch.status,
+                inspections: [inspection],
+              }
+            : item
+        )
+      );
+
+      setMessage(
+        `Đã lưu phiếu kiểm định ${inspection.inspection_code} (${getInspectionResultLabel(
+          inspection.result
+        )}) cho lô ${selectedBatch.batch_code}.`
+      );
       await loadBatches();
     } catch (err) {
-      setError(`Lỗi ghi phiếu kiểm định: ${err.message}`);
+      setSubmitError(`Lỗi ghi phiếu kiểm định: ${err.message}`);
     } finally {
+      inFlightRef.current = false;
       setSubmitting(false);
     }
   };
 
+  const inputClassName = (hasError) =>
+    `mt-1 w-full rounded-lg border px-3 py-2 text-sm text-slate-900 transition focus:outline-none focus:ring-2 ${
+      hasError
+        ? 'border-rose-400 bg-rose-50/40 focus:border-rose-500 focus:ring-rose-500/20'
+        : 'border-slate-300 bg-white focus:border-amber-500 focus:ring-amber-500/20'
+    }`;
+
   return (
     <div className="grid gap-6 lg:grid-cols-12">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-7">
-        <h2 className="text-lg font-bold text-slate-900">Danh sách Lô chờ Kiểm định</h2>
-        <p className="mt-1 text-xs text-slate-500">Chọn một lô nông sản để lập phiếu kiểm định chất lượng.</p>
+      <section
+        aria-labelledby="inspector-list-heading"
+        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-7"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 id="inspector-list-heading" className="text-lg font-bold text-slate-900">
+                Danh sách Lô chờ Kiểm định
+              </h2>
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                {batches.length} lô
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Chọn một lô nông sản để đánh giá chất lượng (Đạt chuẩn / Không đạt).
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={loadingList}
+            onClick={loadBatches}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loadingList ? 'animate-spin' : ''}`} />
+            {loadingList ? 'Đang tải...' : 'Làm mới'}
+          </button>
+        </div>
+
+        {loadError && (
+          <div
+            role="alert"
+            className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+              <span>{loadError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={loadBatches}
+              className="shrink-0 rounded border border-rose-200 bg-white px-2.5 py-1 font-semibold text-rose-700 hover:bg-rose-100"
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                <th className="py-2 pr-3">Mã lô</th>
-                <th className="py-2 pr-3">Nông sản</th>
-                <th className="py-2 pr-3">Trạng thái</th>
-                <th className="py-2 pr-3">Kiểm định gần nhất</th>
-                <th className="py-2">Chọn</th>
+                <th className="whitespace-nowrap py-2 pr-3">Mã lô</th>
+                <th className="whitespace-nowrap py-2 pr-3">Nông sản</th>
+                <th className="whitespace-nowrap py-2 pr-3">Sản lượng</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái</th>
+                <th className="whitespace-nowrap py-2 pr-3">Kiểm định gần nhất</th>
+                <th className="whitespace-nowrap py-2">Chọn</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {batches.map((b) => {
-                const latest = b.inspections?.[0];
-                const isSelected = selectedBatch?.id === b.id;
-                return (
-                  <tr key={b.id} className={isSelected ? 'bg-amber-50/70' : 'hover:bg-slate-50'}>
-                    <td className="py-2.5 pr-3 font-mono text-xs font-semibold">{b.batch_code}</td>
-                    <td className="py-2.5 pr-3 font-medium">{b.product_name}</td>
-                    <td className="py-2.5 pr-3">
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                        {b.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      {latest ? (
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                            latest.result === 'PASSED'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-rose-100 text-rose-800'
-                          }`}
-                        >
-                          {latest.result}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">Chưa kiểm định</span>
-                      )}
-                    </td>
-                    <td className="py-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedBatch(b)}
-                        className="rounded-md bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-700"
-                      >
-                        Kiểm định
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {loadingList && batches.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-sm text-slate-400">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Đang tải danh sách lô kiểm định...
+                    </span>
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {batches.map((b) => {
+                    const latest = b.inspections?.[0];
+                    const isSelected = selectedBatch?.id === b.id;
+                    return (
+                      <tr key={b.id} className={isSelected ? 'bg-amber-50/70' : 'hover:bg-slate-50'}>
+                        <td className="py-2.5 pr-3 font-mono text-xs font-semibold text-slate-800">
+                          {b.batch_code}
+                        </td>
+                        <td className="py-2.5 pr-3 font-medium text-slate-900">{b.product_name}</td>
+                        <td className="py-2.5 pr-3 text-xs text-slate-600">
+                          {b.quantity} {b.unit}
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          <span
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
+                              b.status
+                            )}`}
+                          >
+                            {getBatchStatusLabel(b.status)}
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-3">
+                          {latest ? (
+                            <span
+                              className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                latest.result === 'PASSED'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              {getInspectionResultLabel(latest.result)}
+                            </span>
+                          ) : (
+                            <span className="whitespace-nowrap text-xs text-slate-400">
+                              Chưa kiểm định
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectBatch(b)}
+                            className={`whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                              isSelected
+                                ? 'bg-amber-700 text-white'
+                                : 'bg-amber-600 text-white hover:bg-amber-700'
+                            }`}
+                          >
+                            {isSelected ? 'Đang chọn' : 'Kiểm định'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {batches.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-sm text-slate-400">
+                        Chưa có lô hàng nào cần kiểm định.
+                      </td>
+                    </tr>
+                  )}
+                </>
+              )}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-5">
+      <section
+        aria-labelledby="inspector-form-heading"
+        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-5"
+      >
         <div className="flex items-center gap-2">
           <ClipboardCheck className="h-5 w-5 text-amber-600" />
-          <h3 className="text-lg font-bold text-slate-900">Phiếu Kiểm Định</h3>
+          <h3 id="inspector-form-heading" className="text-lg font-bold text-slate-900">
+            Phiếu Kiểm Định
+          </h3>
         </div>
 
         {selectedBatch ? (
-          <form onSubmit={handleInspect} className="mt-4 space-y-4">
-            <div className="rounded-lg bg-slate-50 p-3 text-xs">
-              Đang kiểm định lô: <strong className="font-mono">{selectedBatch.batch_code}</strong> —{' '}
-              <strong>{selectedBatch.product_name}</strong>
+          <form onSubmit={handleInspect} noValidate className="mt-4 space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+              <div>
+                Đang kiểm định lô:{' '}
+                <strong className="font-mono text-slate-900">{selectedBatch.batch_code}</strong> —{' '}
+                <strong className="text-slate-900">{selectedBatch.product_name}</strong>
+              </div>
+              <div className="mt-1 text-slate-500">
+                Sản lượng: {selectedBatch.quantity} {selectedBatch.unit} • Trạng thái:{' '}
+                <span className="font-semibold text-slate-700">
+                  {getBatchStatusLabel(selectedBatch.status)}
+                </span>
+              </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700">Kết quả kiểm định</label>
+              <label
+                htmlFor="inspector-result"
+                className="block text-xs font-semibold text-slate-700"
+              >
+                Kết quả kiểm định
+              </label>
               <select
+                id="inspector-result"
+                disabled={submitting}
                 value={result}
                 onChange={(e) => setResult(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                className={inputClassName(false)}
               >
-                <option value="PASSED">PASSED — Đạt chuẩn</option>
-                <option value="FAILED">FAILED — Không đạt</option>
+                <option value="PASSED">Đạt chuẩn — Đủ điều kiện nhập kho</option>
+                <option value="FAILED">Không đạt — Chưa đủ điều kiện</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700">Đơn vị kiểm định</label>
+              <label
+                htmlFor="inspector-agency"
+                className="block text-xs font-semibold text-slate-700"
+              >
+                Đơn vị kiểm định <span className="text-rose-600">*</span>
+              </label>
               <input
+                id="inspector-agency"
                 type="text"
-                required
+                disabled={submitting}
                 value={agency}
-                onChange={(e) => setAgency(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                aria-invalid={Boolean(fieldErrors.agency)}
+                onChange={(e) => {
+                  setAgency(e.target.value);
+                  clearFieldError('agency');
+                }}
+                className={inputClassName(Boolean(fieldErrors.agency))}
               />
+              {fieldErrors.agency && (
+                <p className="mt-1 text-xs text-rose-600">{fieldErrors.agency}</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700">Chỉ số kiểm nghiệm</label>
+              <label
+                htmlFor="inspector-metrics"
+                className="block text-xs font-semibold text-slate-700"
+              >
+                Chỉ số kiểm nghiệm <span className="text-rose-600">*</span>
+              </label>
               <input
+                id="inspector-metrics"
                 type="text"
-                required
+                disabled={submitting}
                 value={metrics}
-                onChange={(e) => setMetrics(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                aria-invalid={Boolean(fieldErrors.metrics)}
+                onChange={(e) => {
+                  setMetrics(e.target.value);
+                  clearFieldError('metrics');
+                }}
+                className={inputClassName(Boolean(fieldErrors.metrics))}
               />
+              {fieldErrors.metrics && (
+                <p className="mt-1 text-xs text-rose-600">{fieldErrors.metrics}</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700">Ghi chú</label>
+              <label
+                htmlFor="inspector-notes"
+                className="block text-xs font-semibold text-slate-700"
+              >
+                Ghi chú
+              </label>
               <textarea
+                id="inspector-notes"
                 rows={3}
+                disabled={submitting}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+                className={inputClassName(false)}
               />
             </div>
 
             {message && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
-                {message}
+              <div
+                role="status"
+                className="flex items-start justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800"
+              >
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <span>{message}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMessage('')}
+                  aria-label="Đóng thông báo thành công"
+                  className="rounded p-0.5 text-emerald-700 hover:bg-emerald-100"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
             )}
-            {error && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
-                {error}
+
+            {submitError && (
+              <div
+                role="alert"
+                className="flex items-start justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                  <span>{submitError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSubmitError('')}
+                  aria-label="Đóng thông báo lỗi"
+                  className="rounded p-0.5 text-rose-600 hover:bg-rose-100"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
             )}
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500/40 disabled:cursor-not-allowed disabled:opacity-60"
             >
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {submitting ? 'Đang lưu phiếu...' : 'Lưu kết quả kiểm định'}
             </button>
           </form>
         ) : (
-          <p className="mt-4 text-sm text-slate-500">Chưa có lô hàng nào để kiểm định.</p>
+          <p className="mt-4 text-sm text-slate-500">
+            {loadingList
+              ? 'Đang tải danh sách lô hàng...'
+              : 'Chưa có lô hàng nào để kiểm định.'}
+          </p>
         )}
-      </div>
+      </section>
     </div>
   );
 }

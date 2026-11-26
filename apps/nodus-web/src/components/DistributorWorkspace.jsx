@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Download, ExternalLink, Truck } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { computeSha256Hex, DEFAULT_TENANT_UUID, graphqlRequest } from '../lib/graphql';
+import { getBatchStatusLabel } from '../lib/statusLabels';
 
 const DISTRIBUTOR_BATCHES_QUERY = `
   query DistributorBatches {
@@ -12,6 +13,7 @@ const DISTRIBUTOR_BATCHES_QUERY = `
       limit: 30
     ) {
       id
+      tenant_id
       batch_code
       public_trace_key
       product_name
@@ -106,7 +108,7 @@ export default function DistributorWorkspace({ user, onNavigate }) {
         query: MARK_DISTRIBUTING_MUTATION,
         variables: {
           id: batch.id,
-          tenant_id: DEFAULT_TENANT_UUID,
+          tenant_id: batch.tenant_id || DEFAULT_TENANT_UUID,
           payload,
           sha256_hash: sha256,
         },
@@ -124,10 +126,13 @@ export default function DistributorWorkspace({ user, onNavigate }) {
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-2">
           <Truck className="h-5 w-5 text-purple-600" />
-          <h2 className="text-lg font-bold text-slate-900">Bàn làm việc Nhà phân phối — In nhãn QR & Xuất bán</h2>
+          <h2 className="text-lg font-bold text-slate-900">
+            Bàn làm việc Nhà phân phối — In nhãn QR & Xuất bán
+          </h2>
         </div>
         <p className="mt-1 text-xs text-slate-500">
-          Chỉ hiển thị các lô nông sản đã vượt qua kiểm định và nhập kho (<code className="font-mono">IN_STORAGE</code> / <code className="font-mono">DISTRIBUTING</code>).
+          Chỉ hiển thị các lô nông sản đã kiểm định đạt chuẩn và đã nhập kho (Đã nhập kho / Đang
+          phân phối).
         </p>
 
         {error && (
@@ -140,12 +145,17 @@ export default function DistributorWorkspace({ user, onNavigate }) {
           {batches.map((b) => {
             const traceUrl = `${window.location.origin}/trace/${b.public_trace_key}`;
             return (
-              <div key={b.id} className="flex flex-col justify-between rounded-xl border border-slate-200 p-4">
+              <div
+                key={b.id}
+                className="flex flex-col justify-between rounded-xl border border-slate-200 p-4"
+              >
                 <div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-slate-700">{b.batch_code}</span>
-                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-semibold text-purple-800">
-                      {b.status}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-bold text-slate-700">
+                      {b.batch_code}
+                    </span>
+                    <span className="inline-flex items-center whitespace-nowrap rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-semibold text-purple-800">
+                      {getBatchStatusLabel(b.status)}
                     </span>
                   </div>
                   <h3 className="mt-1 text-base font-bold text-slate-900">{b.product_name}</h3>
@@ -154,7 +164,13 @@ export default function DistributorWorkspace({ user, onNavigate }) {
                   </p>
 
                   <div className="my-4 flex justify-center rounded-lg border border-slate-100 bg-slate-50 p-4">
-                    <QRCodeSVG id={`qr-svg-${b.public_trace_key}`} value={traceUrl} size={128} />
+                    <QRCodeSVG
+                      id={`qr-svg-${b.public_trace_key}`}
+                      value={traceUrl}
+                      size={128}
+                      level="M"
+                      includeMargin
+                    />
                   </div>
                 </div>
 

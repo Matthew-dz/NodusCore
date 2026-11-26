@@ -24,7 +24,7 @@ const ROLE_COLORS = {
 function RoleBadge({ role }) {
   if (!role) {
     return (
-      <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+      <span className="inline-flex items-center whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
         Chưa xác định vai trò
       </span>
     );
@@ -32,7 +32,7 @@ function RoleBadge({ role }) {
 
   return (
     <span
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+      className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
         ROLE_COLORS[role] || 'border-slate-200 bg-slate-100 text-slate-700'
       }`}
     >
@@ -62,12 +62,12 @@ export default function Navbar({
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
           <button
             type="button"
             onClick={() => handleNavClick('/')}
-            className="flex items-center gap-2 text-left focus:outline-none focus:ring-2 focus:ring-emerald-500/30 rounded-lg"
+            className="flex items-center gap-2 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm">
               <Sprout className="h-5 w-5" />
