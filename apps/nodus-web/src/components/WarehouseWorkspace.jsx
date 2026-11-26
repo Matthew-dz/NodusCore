@@ -357,7 +357,7 @@ export default function WarehouseWorkspace({ user }) {
                         </td>
                         <td className="py-3 pr-3">
                           <span
-                            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
                               b.status
                             )}`}
                           >
@@ -367,7 +367,7 @@ export default function WarehouseWorkspace({ user }) {
                         <td className="py-3 pr-3">
                           {insp ? (
                             <span
-                              className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${
+                              className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-bold ${
                                 insp.result === 'PASSED'
                                   ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300'
                                   : 'border-rose-400/40 bg-rose-500/15 text-rose-300'
@@ -376,14 +376,14 @@ export default function WarehouseWorkspace({ user }) {
                               {getInspectionResultLabel(insp.result)}
                             </span>
                           ) : (
-                            <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
+                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
                               Chưa kiểm định
                             </span>
                           )}
                         </td>
                         <td className="py-3">
                           {alreadyStored ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               Đã nhập kho
                             </span>
@@ -392,7 +392,7 @@ export default function WarehouseWorkspace({ user }) {
                               type="button"
                               disabled={Boolean(loadingId)}
                               onClick={() => handleIntake(b)}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400/40 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400/40 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                               {isProcessing ? 'Đang xử lý...' : 'Nhập kho'}

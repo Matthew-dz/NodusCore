@@ -243,7 +243,7 @@ export default function InspectorWorkspace({ user }) {
                         </td>
                         <td className="py-2.5 pr-3">
                           <span
-                            className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
                               b.status
                             )}`}
                           >
@@ -253,7 +253,7 @@ export default function InspectorWorkspace({ user }) {
                         <td className="py-2.5 pr-3">
                           {latest ? (
                             <span
-                              className={`rounded-full border px-2 py-0.5 text-xs font-bold ${
+                              className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-bold ${
                                 latest.result === 'PASSED'
                                   ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300'
                                   : 'border-rose-400/40 bg-rose-500/15 text-rose-300'
@@ -262,14 +262,16 @@ export default function InspectorWorkspace({ user }) {
                               {getInspectionResultLabel(latest.result)}
                             </span>
                           ) : (
-                            <span className="text-xs text-slate-400">Chưa kiểm định</span>
+                            <span className="whitespace-nowrap text-xs text-slate-400">
+                              Chưa kiểm định
+                            </span>
                           )}
                         </td>
                         <td className="py-2.5">
                           <button
                             type="button"
                             onClick={() => handleSelectBatch(b)}
-                            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                            className={`whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
                               isSelected
                                 ? 'bg-amber-500 text-slate-950'
                                 : 'bg-amber-600/90 text-white hover:bg-amber-500'

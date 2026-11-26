@@ -880,12 +880,12 @@ export default function FarmerWorkspace({ user, onNavigate }) {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-emerald-400/20 text-xs uppercase text-slate-400">
-                <th className="py-2 pr-3">Mã lô</th>
-                <th className="py-2 pr-3">Cây trồng</th>
-                <th className="py-2 pr-3">Thu hoạch / HSD</th>
-                <th className="py-2 pr-3">Sản lượng</th>
-                <th className="py-2 pr-3">Trạng thái</th>
-                <th className="py-2">Trace Key</th>
+                <th className="whitespace-nowrap py-2 pr-3">Mã lô</th>
+                <th className="whitespace-nowrap py-2 pr-3">Cây trồng</th>
+                <th className="whitespace-nowrap py-2 pr-3">Thu hoạch / HSD</th>
+                <th className="whitespace-nowrap py-2 pr-3">Sản lượng</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái</th>
+                <th className="whitespace-nowrap py-2">Trace Key</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-emerald-400/10">
@@ -917,7 +917,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                       </td>
                       <td className="py-2.5 pr-3">
                         <span
-                          className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
+                          className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
                             b.status
                           )}`}
                         >

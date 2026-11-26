@@ -58,7 +58,7 @@ function AppShell() {
         onNavigate={navigate}
       />
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-8">
         {isTraceRoute ? (
           <PublicTracePage traceKey={traceKey} onNavigate={navigate} />
         ) : status === 'loading' ? (
