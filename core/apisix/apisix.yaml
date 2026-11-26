@@ -1,8 +1,8 @@
 # Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
 
 routes:
-  # 1. Public Health Check (Gateway)
-  - id: health-check
+  # 1. Gateway Health Check
+  - id: gateway-health-route
     uri: /health
     methods:
       - GET
@@ -10,25 +10,75 @@ routes:
       mocking:
         response_status: 200
         content_type: "application/json"
-        response_example: '{"status": "ok", "system": "NodusCore DX-OS"}'
+        response_example: '{"status": "UP", "gateway": "Apache APISIX", "engine": "NodusCore DX-OS"}'
 
-  # 2. Public Allowlist: Consumer QR Traceability (No auth required)
-  - id: public-trace-api
+  # 2. Public Allowlist: Consumer QR Traceability (No Keycloak token required, Rate Limited)
+  - id: public-trace-route
     uri: /api/trace/*
+    methods:
+      - GET
+      - POST
+      - OPTIONS
     plugins:
+      proxy-rewrite:
+        regex_uri:
+          - "^/api/trace/?(.*)"
+          - "/v1/graphql"
       cors:
         allow_origins: "*"
         allow_methods: "GET,POST,OPTIONS"
-      proxy-rewrite:
-        regex_uri:
-          - "^/api/trace/.*"
-          - "/v1/graphql"
+      limit-count:
+        count: 60
+        time_window: 60
+        rejected_code: 429
+        key_type: var
+        key: remote_addr
     upstream:
       type: roundrobin
       nodes:
         "hasura:8080": 1
 
-  # 3. Protected Data API (Zero-Trust: Keycloak JWT required for 5 internal roles)
+  # 3. Direct Hasura GraphQL Route (CORS enabled for Frontend SPA)
+  - id: hasura-graphql-route
+    uri: /v1/graphql
+    methods:
+      - POST
+      - OPTIONS
+    plugins:
+      cors:
+        allow_origins: "http://localhost:3000,http://localhost:3001"
+        allow_credential: true
+        allow_methods: "POST,OPTIONS"
+        allow_headers: "Authorization,Content-Type,x-hasura-role,x-hasura-admin-secret"
+    upstream:
+      type: roundrobin
+      nodes:
+        "hasura:8080": 1
+
+  # 4. Keycloak Identity Proxy Route (PKCE OIDC flows)
+  - id: keycloak-auth-route
+    uri: /auth/*
+    methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    plugins:
+      proxy-rewrite:
+        regex_uri:
+          - "^/auth/(.*)"
+          - "/$1"
+      cors:
+        allow_origins: "*"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "*"
+    upstream:
+      type: roundrobin
+      nodes:
+        "keycloak:8080": 1
+
+  # 5. Protected Data API (Zero-Trust: Keycloak JWT required for 5 internal roles)
   - id: hasura-data-api
     uri: /api/data/*
     plugins:
@@ -51,7 +101,7 @@ routes:
       nodes:
         "hasura:8080": 1
 
-  # 4. Protected Workflow API (Zero-Trust: Keycloak JWT required)
+  # 6. Protected Workflow API (Zero-Trust: Keycloak JWT required)
   - id: n8n-workflow-api
     uri: /api/workflow/*
     plugins:
