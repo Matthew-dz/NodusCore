@@ -11,13 +11,13 @@ export const BATCH_STATUS_LABELS = {
 };
 
 export const BATCH_STATUS_STYLES = {
-  CREATED: 'border-slate-500/40 bg-slate-800/70 text-slate-200',
-  HARVESTED: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300',
-  INSPECTING: 'border-amber-400/40 bg-amber-500/15 text-amber-300',
-  IN_STORAGE: 'border-sky-400/40 bg-sky-500/15 text-sky-300',
-  DISTRIBUTING: 'border-purple-400/40 bg-purple-500/15 text-purple-300',
-  SOLD: 'border-indigo-400/40 bg-indigo-500/15 text-indigo-300',
-  REJECTED: 'border-rose-400/40 bg-rose-500/15 text-rose-300',
+  CREATED: 'border-slate-200 bg-slate-100 text-slate-700',
+  HARVESTED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  INSPECTING: 'border-amber-200 bg-amber-50 text-amber-800',
+  IN_STORAGE: 'border-sky-200 bg-sky-50 text-sky-800',
+  DISTRIBUTING: 'border-purple-200 bg-purple-50 text-purple-800',
+  SOLD: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+  REJECTED: 'border-rose-200 bg-rose-50 text-rose-700',
 };
 
 export const INSPECTION_RESULT_LABELS = {
@@ -53,9 +53,7 @@ export function getBatchStatusLabel(status) {
 }
 
 export function getBatchStatusStyle(status) {
-  return (
-    BATCH_STATUS_STYLES[status] || 'border-slate-500/40 bg-slate-800/70 text-slate-200'
-  );
+  return BATCH_STATUS_STYLES[status] || 'border-slate-200 bg-slate-100 text-slate-700';
 }
 
 export function getInspectionResultLabel(result) {

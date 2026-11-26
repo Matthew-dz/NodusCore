@@ -123,20 +123,20 @@ export default function DistributorWorkspace({ user, onNavigate }) {
 
   return (
     <div className="space-y-6">
-      <div className="nodus-glass-card rounded-[20px] p-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-2">
-          <Truck className="h-5 w-5 text-purple-400" />
-          <h2 className="text-lg font-bold text-slate-100">
+          <Truck className="h-5 w-5 text-purple-600" />
+          <h2 className="text-lg font-bold text-slate-900">
             Bàn làm việc Nhà phân phối — In nhãn QR & Xuất bán
           </h2>
         </div>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-slate-500">
           Chỉ hiển thị các lô nông sản đã kiểm định đạt chuẩn và đã nhập kho (Đã nhập kho / Đang
           phân phối).
         </p>
 
         {error && (
-          <div className="mt-3 rounded-xl border border-rose-400/40 bg-rose-950/50 p-3 text-xs text-rose-200">
+          <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
             {error}
           </div>
         )}
@@ -147,23 +147,23 @@ export default function DistributorWorkspace({ user, onNavigate }) {
             return (
               <div
                 key={b.id}
-                className="nodus-glass-subcard flex flex-col justify-between rounded-2xl p-4"
+                className="flex flex-col justify-between rounded-xl border border-slate-200 p-4"
               >
                 <div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-slate-300">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-bold text-slate-700">
                       {b.batch_code}
                     </span>
-                    <span className="rounded-full border border-purple-400/40 bg-purple-500/15 px-2 py-0.5 text-[11px] font-semibold text-purple-300">
+                    <span className="inline-flex items-center whitespace-nowrap rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-semibold text-purple-800">
                       {getBatchStatusLabel(b.status)}
                     </span>
                   </div>
-                  <h3 className="mt-1 text-base font-bold text-white">{b.product_name}</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="mt-1 text-base font-bold text-slate-900">{b.product_name}</h3>
+                  <p className="text-xs text-slate-500">
                     Sản lượng: {b.quantity} {b.unit}
                   </p>
 
-                  <div className="my-4 flex justify-center rounded-xl border border-emerald-300/30 bg-white p-3">
+                  <div className="my-4 flex justify-center rounded-lg border border-slate-100 bg-slate-50 p-4">
                     <QRCodeSVG
                       id={`qr-svg-${b.public_trace_key}`}
                       value={traceUrl}
@@ -179,7 +179,7 @@ export default function DistributorWorkspace({ user, onNavigate }) {
                     <button
                       type="button"
                       onClick={() => downloadQrSvg(b.public_trace_key)}
-                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-emerald-400/25 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                     >
                       <Download className="h-3.5 w-3.5" />
                       Tải nhãn QR
@@ -187,7 +187,7 @@ export default function DistributorWorkspace({ user, onNavigate }) {
                     <button
                       type="button"
                       onClick={() => onNavigate(`/trace/${b.public_trace_key}`)}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-400/35 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25"
+                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       Xem
@@ -198,7 +198,7 @@ export default function DistributorWorkspace({ user, onNavigate }) {
                     <button
                       type="button"
                       onClick={() => handleDispatch(b)}
-                      className="w-full rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-purple-500"
+                      className="w-full rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-700"
                     >
                       Xuất kho phân phối
                     </button>

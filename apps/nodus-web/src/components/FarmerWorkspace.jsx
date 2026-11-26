@@ -192,12 +192,10 @@ export default function FarmerWorkspace({ user, onNavigate }) {
 
   const handleReset = () => {
     resetFormFields();
-    const defaultTenant =
-      tenants.find((t) => t.code === user.tenantId) || tenants[0];
+    const defaultTenant = tenants.find((t) => t.code === user.tenantId) || tenants[0];
     const nextTenantId = defaultTenant?.id || DEFAULT_TENANT_UUID;
     setTenantId(nextTenantId);
-    const firstZone =
-      zones.find((z) => z.tenant_id === nextTenantId) || zones[0];
+    const firstZone = zones.find((z) => z.tenant_id === nextTenantId) || zones[0];
     setZoneId(firstZone?.id || DEFAULT_ZONE_UUID);
     setSubmitError('');
     setAuditWarning('');
@@ -385,10 +383,10 @@ export default function FarmerWorkspace({ user, onNavigate }) {
     : '';
 
   const inputClassName = (hasError) =>
-    `mt-1 w-full rounded-[10px] border px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 transition focus:outline-none focus:ring-2 ${
+    `mt-1 w-full rounded-lg border px-3 py-2 text-sm text-slate-900 transition focus:outline-none focus:ring-2 ${
       hasError
-        ? 'border-rose-400/70 bg-rose-950/30 focus:border-rose-400 focus:ring-rose-500/25'
-        : 'border-emerald-400/35 bg-slate-900/65 focus:border-emerald-400 focus:ring-emerald-500/30'
+        ? 'border-rose-400 bg-rose-50/40 focus:border-rose-500 focus:ring-rose-500/20'
+        : 'border-slate-300 bg-white focus:border-emerald-500 focus:ring-emerald-500/20'
     }`;
 
   return (
@@ -396,25 +394,25 @@ export default function FarmerWorkspace({ user, onNavigate }) {
       <div className="space-y-6 lg:col-span-5">
         <section
           aria-labelledby="farmer-create-batch-heading"
-          className="nodus-glass-card rounded-[20px] p-6"
+          className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
         >
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <Sprout className="h-5 w-5 text-emerald-400" />
+                <Sprout className="h-5 w-5 text-emerald-600" />
                 <h2
                   id="farmer-create-batch-heading"
-                  className="text-lg font-bold text-slate-100"
+                  className="text-lg font-bold text-slate-900"
                 >
                   Tạo Lô Nông Sản Mới
                 </h2>
               </div>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-500">
                 Gửi GraphQL mutation qua APISIX Gateway (
-                <code className="font-mono text-emerald-300">/api/data/v1/graphql</code>)
+                <code className="font-mono">/api/data/v1/graphql</code>)
               </p>
             </div>
-            <span className="shrink-0 rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
+            <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
               Nông hộ
             </span>
           </div>
@@ -423,9 +421,9 @@ export default function FarmerWorkspace({ user, onNavigate }) {
             <div>
               <label
                 htmlFor="farmer-tenant"
-                className="block text-xs font-semibold text-slate-300"
+                className="block text-xs font-semibold text-slate-700"
               >
-                Hợp tác xã (Tenants) <span className="text-rose-400">*</span>
+                Hợp tác xã (Tenants) <span className="text-rose-600">*</span>
               </label>
               <select
                 id="farmer-tenant"
@@ -438,18 +436,18 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               >
                 {tenants.length > 0 ? (
                   tenants.map((t) => (
-                    <option key={t.id} value={t.id} className="bg-slate-900 text-slate-100">
+                    <option key={t.id} value={t.id}>
                       {t.name} ({t.code})
                     </option>
                   ))
                 ) : (
-                  <option value={DEFAULT_TENANT_UUID} className="bg-slate-900 text-slate-100">
+                  <option value={DEFAULT_TENANT_UUID}>
                     HTX Nông nghiệp Hòa Vang - Đà Nẵng (htx-danang)
                   </option>
                 )}
               </select>
               {fieldErrors.tenantId && (
-                <p id="farmer-tenant-error" className="mt-1 text-xs text-rose-400">
+                <p id="farmer-tenant-error" className="mt-1 text-xs text-rose-600">
                   {fieldErrors.tenantId}
                 </p>
               )}
@@ -458,9 +456,9 @@ export default function FarmerWorkspace({ user, onNavigate }) {
             <div>
               <label
                 htmlFor="farmer-zone"
-                className="block text-xs font-semibold text-slate-300"
+                className="block text-xs font-semibold text-slate-700"
               >
-                Vùng trồng <span className="text-rose-400">*</span>
+                Vùng trồng <span className="text-rose-600">*</span>
               </label>
               <select
                 id="farmer-zone"
@@ -475,20 +473,20 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   filteredZones.map((z) => {
                     const htxName = tenantMap[z.tenant_id]?.name;
                     return (
-                      <option key={z.id} value={z.id} className="bg-slate-900 text-slate-100">
+                      <option key={z.id} value={z.id}>
                         {z.zone_code} — {z.name}
                         {htxName ? ` (${htxName})` : ''}
                       </option>
                     );
                   })
                 ) : (
-                  <option value={DEFAULT_ZONE_UUID} className="bg-slate-900 text-slate-100">
+                  <option value={DEFAULT_ZONE_UUID}>
                     ZONE-DN-01 — Vùng trồng Hòa Vang - Đà Nẵng
                   </option>
                 )}
               </select>
               {fieldErrors.zoneId && (
-                <p id="farmer-zone-error" className="mt-1 text-xs text-rose-400">
+                <p id="farmer-zone-error" className="mt-1 text-xs text-rose-600">
                   {fieldErrors.zoneId}
                 </p>
               )}
@@ -497,9 +495,9 @@ export default function FarmerWorkspace({ user, onNavigate }) {
             <div>
               <label
                 htmlFor="farmer-product-name"
-                className="block text-xs font-semibold text-slate-300"
+                className="block text-xs font-semibold text-slate-700"
               >
-                Tên cây trồng <span className="text-rose-400">*</span>
+                Tên cây trồng <span className="text-rose-600">*</span>
               </label>
               <input
                 id="farmer-product-name"
@@ -519,7 +517,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                 className={inputClassName(Boolean(fieldErrors.productName))}
               />
               {fieldErrors.productName && (
-                <p id="farmer-product-name-error" className="mt-1 text-xs text-rose-400">
+                <p id="farmer-product-name-error" className="mt-1 text-xs text-rose-600">
                   {fieldErrors.productName}
                 </p>
               )}
@@ -529,9 +527,9 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               <div>
                 <label
                   htmlFor="farmer-harvest-date"
-                  className="block whitespace-nowrap text-xs font-semibold text-slate-300"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
                 >
-                  Ngày thu hoạch <span className="text-rose-400">*</span>
+                  Ngày thu hoạch <span className="text-rose-600">*</span>
                 </label>
                 <input
                   id="farmer-harvest-date"
@@ -550,7 +548,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   className={inputClassName(Boolean(fieldErrors.harvestDate))}
                 />
                 {fieldErrors.harvestDate && (
-                  <p id="farmer-harvest-date-error" className="mt-1 text-xs text-rose-400">
+                  <p id="farmer-harvest-date-error" className="mt-1 text-xs text-rose-600">
                     {fieldErrors.harvestDate}
                   </p>
                 )}
@@ -559,9 +557,9 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               <div>
                 <label
                   htmlFor="farmer-expiry-date"
-                  className="block whitespace-nowrap text-xs font-semibold text-slate-300"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
                 >
-                  Ngày hết hạn <span className="text-rose-400">*</span>
+                  Ngày hết hạn <span className="text-rose-600">*</span>
                 </label>
                 <input
                   id="farmer-expiry-date"
@@ -580,7 +578,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   className={inputClassName(Boolean(fieldErrors.expiryDate))}
                 />
                 {fieldErrors.expiryDate && (
-                  <p id="farmer-expiry-date-error" className="mt-1 text-xs text-rose-400">
+                  <p id="farmer-expiry-date-error" className="mt-1 text-xs text-rose-600">
                     {fieldErrors.expiryDate}
                   </p>
                 )}
@@ -591,9 +589,9 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               <div className="sm:col-span-7">
                 <label
                   htmlFor="farmer-quantity"
-                  className="block whitespace-nowrap text-xs font-semibold text-slate-300"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
                 >
-                  Sản lượng <span className="text-rose-400">*</span>
+                  Sản lượng <span className="text-rose-600">*</span>
                 </label>
                 <input
                   id="farmer-quantity"
@@ -614,7 +612,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   className={inputClassName(Boolean(fieldErrors.quantity))}
                 />
                 {fieldErrors.quantity && (
-                  <p id="farmer-quantity-error" className="mt-1 text-xs text-rose-400">
+                  <p id="farmer-quantity-error" className="mt-1 text-xs text-rose-600">
                     {fieldErrors.quantity}
                   </p>
                 )}
@@ -623,9 +621,9 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               <div className="sm:col-span-5">
                 <label
                   htmlFor="farmer-unit"
-                  className="block whitespace-nowrap text-xs font-semibold text-slate-300"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
                 >
-                  Đơn vị tính <span className="text-rose-400">*</span>
+                  Đơn vị tính <span className="text-rose-600">*</span>
                 </label>
                 <input
                   id="farmer-unit"
@@ -649,7 +647,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   ))}
                 </datalist>
                 {fieldErrors.unit && (
-                  <p id="farmer-unit-error" className="mt-1 text-xs text-rose-400">
+                  <p id="farmer-unit-error" className="mt-1 text-xs text-rose-600">
                     {fieldErrors.unit}
                   </p>
                 )}
@@ -659,17 +657,17 @@ export default function FarmerWorkspace({ user, onNavigate }) {
             {submitError && (
               <div
                 role="alert"
-                className="flex items-start justify-between gap-2 rounded-xl border border-rose-400/40 bg-rose-950/50 p-3 text-xs text-rose-200"
+                className="flex items-start justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
               >
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
                   <span>{submitError}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSubmitError('')}
                   aria-label="Đóng thông báo lỗi"
-                  className="rounded p-0.5 text-rose-300 hover:bg-rose-900/60"
+                  className="rounded p-0.5 text-rose-600 hover:bg-rose-100"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -680,7 +678,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               <button
                 type="submit"
                 disabled={submitting}
-                className="nodus-btn-primary inline-flex flex-1 items-center justify-center gap-2 rounded-[10px] px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 active:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -694,7 +692,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                 type="button"
                 disabled={submitting}
                 onClick={handleReset}
-                className="inline-flex items-center justify-center gap-1.5 rounded-[10px] border border-emerald-400/25 bg-slate-900/60 px-3.5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800/80 focus:outline-none focus:ring-2 focus:ring-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400/30 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <RotateCcw className="h-4 w-4" />
                 Đặt lại
@@ -706,31 +704,31 @@ export default function FarmerWorkspace({ user, onNavigate }) {
         {createdBatch && (
           <div
             role="status"
-            className="nodus-glass-card rounded-[20px] border-emerald-400/45 p-6"
+            className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm"
           >
             <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-300">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
                 Đã lưu lô thành công & Sinh mã QR
               </div>
               <button
                 type="button"
                 onClick={() => setCreatedBatch(null)}
                 aria-label="Ẩn thông báo tạo lô thành công"
-                className="rounded p-1 text-slate-300 hover:bg-slate-800"
+                className="rounded p-1 text-emerald-700 hover:bg-emerald-100"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {auditWarning && (
-              <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-950/40 p-2.5 text-xs text-amber-200">
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
                 {auditWarning}
               </div>
             )}
 
             <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-              <div className="shrink-0 rounded-xl border border-emerald-300/40 bg-white p-2.5 shadow-md">
+              <div className="shrink-0 rounded-xl border border-emerald-200 bg-white p-2.5 shadow-sm">
                 <QRCodeSVG
                   id={`farmer-qr-svg-${createdBatch.public_trace_key}`}
                   value={traceUrl}
@@ -741,38 +739,38 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               </div>
 
               <div className="min-w-0 flex-1 space-y-2 text-sm">
-                <div className="flex items-center gap-1.5 font-bold text-slate-100">
-                  <QrCode className="h-4 w-4 text-emerald-400" />
+                <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <QrCode className="h-4 w-4 text-emerald-600" />
                   <span>{createdBatch.product_name}</span>
                 </div>
 
-                <div className="text-xs text-slate-300">
+                <div className="text-xs text-slate-600">
                   Sản lượng:{' '}
-                  <span className="font-semibold text-white">
+                  <span className="font-semibold text-slate-900">
                     {createdBatch.quantity} {createdBatch.unit}
                   </span>
                   {' • '}HSD:{' '}
-                  <span className="font-semibold text-slate-200">
+                  <span className="font-semibold text-slate-800">
                     {createdBatch.expiry_date || '—'}
                   </span>
                 </div>
 
-                <div className="text-xs text-slate-300">
+                <div className="text-xs text-slate-600">
                   Mã lô:{' '}
-                  <code className="font-mono font-semibold text-white">
+                  <code className="font-mono font-semibold text-slate-900">
                     {createdBatch.batch_code}
                   </code>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-300">
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
                   <span>Trace Key:</span>
-                  <code className="font-mono font-semibold text-emerald-300">
+                  <code className="font-mono font-semibold text-emerald-700">
                     {createdBatch.public_trace_key}
                   </code>
                   <button
                     type="button"
                     onClick={() => handleCopyValue('traceKey', createdBatch.public_trace_key)}
-                    className="inline-flex items-center gap-1 rounded border border-emerald-400/30 bg-slate-900/70 px-1.5 py-0.5 text-[11px] font-medium text-emerald-300 hover:bg-slate-800"
+                    className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
                   >
                     {copiedField === 'traceKey' ? (
                       <>
@@ -788,7 +786,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   </button>
                 </div>
 
-                <div className="nodus-glass-subcard rounded-lg p-2 text-[11px] text-slate-300 break-all">
+                <div className="rounded-lg border border-emerald-200/80 bg-white/90 p-2 text-[11px] text-slate-600 break-all">
                   {traceUrl}
                 </div>
 
@@ -796,7 +794,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   <button
                     type="button"
                     onClick={() => downloadQrPng(createdBatch.public_trace_key)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 bg-slate-900/70 px-2.5 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-slate-800"
+                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
                   >
                     <ImageDown className="h-3.5 w-3.5" />
                     Tải PNG
@@ -804,7 +802,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   <button
                     type="button"
                     onClick={() => downloadQrSvg(createdBatch.public_trace_key)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 bg-slate-900/70 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-800"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Tải SVG
@@ -812,7 +810,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                   <button
                     type="button"
                     onClick={() => printQrLabel(createdBatch)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 bg-slate-900/70 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-800"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
                     <Printer className="h-3.5 w-3.5" />
                     In nhãn
@@ -822,7 +820,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                 <button
                   type="button"
                   onClick={() => onNavigate(`/trace/${createdBatch.public_trace_key}`)}
-                  className="inline-flex items-center gap-1 pt-0.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:underline"
+                  className="inline-flex items-center gap-1 pt-0.5 text-xs font-semibold text-emerald-700 hover:underline"
                 >
                   Mở trang tra cứu /trace/{createdBatch.public_trace_key}
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -835,14 +833,14 @@ export default function FarmerWorkspace({ user, onNavigate }) {
 
       <section
         aria-labelledby="farmer-batch-list-heading"
-        className="nodus-glass-card rounded-[20px] p-6 lg:col-span-7"
+        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-7"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h3 id="farmer-batch-list-heading" className="text-base font-bold text-slate-100">
+            <h3 id="farmer-batch-list-heading" className="text-base font-bold text-slate-900">
               Danh sách Lô Nông Sản
             </h3>
-            <span className="rounded-full border border-emerald-400/25 bg-slate-900/70 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
               {batches.length} lô
             </span>
           </div>
@@ -850,7 +848,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
             type="button"
             disabled={loadingList}
             onClick={loadData}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loadingList ? 'animate-spin' : ''}`} />
             {loadingList ? 'Đang tải...' : 'Làm mới'}
@@ -860,16 +858,16 @@ export default function FarmerWorkspace({ user, onNavigate }) {
         {loadError && (
           <div
             role="alert"
-            className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-rose-400/40 bg-rose-950/50 p-3 text-xs text-rose-200"
+            className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
           >
             <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
               <span>{loadError}</span>
             </div>
             <button
               type="button"
               onClick={loadData}
-              className="shrink-0 rounded border border-rose-400/40 bg-rose-900/50 px-2.5 py-1 font-semibold text-rose-100 hover:bg-rose-900"
+              className="shrink-0 rounded border border-rose-200 bg-white px-2.5 py-1 font-semibold text-rose-700 hover:bg-rose-100"
             >
               Thử lại
             </button>
@@ -879,7 +877,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-emerald-400/20 text-xs uppercase text-slate-400">
+              <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
                 <th className="whitespace-nowrap py-2 pr-3">Mã lô</th>
                 <th className="whitespace-nowrap py-2 pr-3">Cây trồng</th>
                 <th className="whitespace-nowrap py-2 pr-3">Thu hoạch / HSD</th>
@@ -888,12 +886,12 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                 <th className="whitespace-nowrap py-2">Trace Key</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-emerald-400/10">
+            <tbody className="divide-y divide-slate-100">
               {loadingList && batches.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-sm text-slate-400">
                     <span className="inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Đang tải danh sách lô nông sản...
                     </span>
                   </td>
@@ -901,18 +899,18 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               ) : (
                 <>
                   {batches.map((b) => (
-                    <tr key={b.id} className="transition hover:bg-emerald-500/5">
-                      <td className="py-2.5 pr-3 font-mono text-xs font-semibold text-slate-200">
+                    <tr key={b.id} className="hover:bg-slate-50">
+                      <td className="py-2.5 pr-3 font-mono text-xs font-semibold text-slate-800">
                         {b.batch_code}
                       </td>
-                      <td className="py-2.5 pr-3 font-medium text-white">{b.product_name}</td>
-                      <td className="py-2.5 pr-3 text-xs text-slate-300">
+                      <td className="py-2.5 pr-3 font-medium text-slate-900">{b.product_name}</td>
+                      <td className="py-2.5 pr-3 text-xs text-slate-500">
                         <div>{b.harvest_date || '—'}</div>
                         <div className="text-[11px] text-slate-400">
                           HSD: {b.expiry_date || '—'}
                         </div>
                       </td>
-                      <td className="py-2.5 pr-3 text-slate-300">
+                      <td className="py-2.5 pr-3 text-slate-600">
                         {b.quantity} {b.unit}
                       </td>
                       <td className="py-2.5 pr-3">
@@ -928,7 +926,7 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                         <button
                           type="button"
                           onClick={() => onNavigate(`/trace/${b.public_trace_key}`)}
-                          className="font-mono text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:underline"
+                          className="font-mono text-xs font-semibold text-emerald-700 hover:underline"
                         >
                           {b.public_trace_key}
                         </button>

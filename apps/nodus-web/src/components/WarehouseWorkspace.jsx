@@ -140,14 +140,14 @@ export default function WarehouseWorkspace({ user }) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="poka-yoke-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[1px]"
           onClick={() => setPokaYokeModal(null)}
         >
           <div
-            className="w-full max-w-lg overflow-hidden rounded-[20px] border-2 border-rose-500/80 bg-slate-900/95 shadow-2xl shadow-rose-950/60 backdrop-blur-xl"
+            className="w-full max-w-lg overflow-hidden rounded-2xl border-2 border-rose-500 bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3 border-b border-rose-500/30 bg-rose-600 px-6 py-4 text-white">
+            <div className="flex items-start justify-between gap-3 border-b border-rose-200 bg-rose-600 px-6 py-4 text-white">
               <div className="flex items-center gap-2.5">
                 <AlertOctagon className="h-6 w-6 shrink-0" />
                 <div>
@@ -170,36 +170,36 @@ export default function WarehouseWorkspace({ user }) {
             </div>
 
             <div className="space-y-4 p-6">
-              <div className="rounded-xl border border-rose-400/40 bg-rose-950/50 p-4">
-                <p className="text-sm font-bold text-rose-200">{pokaYokeModal.title}</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-rose-300">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                <p className="text-sm font-bold text-rose-900">{pokaYokeModal.title}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-rose-800">
                   {pokaYokeModal.description}
                 </p>
               </div>
 
-              <div className="nodus-glass-subcard grid grid-cols-1 gap-2 rounded-xl p-3.5 text-xs sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs sm:grid-cols-2">
                 <div>
-                  <span className="text-slate-400">Lô hàng: </span>
-                  <strong className="font-mono text-white">{pokaYokeModal.batchCode}</strong>
+                  <span className="text-slate-500">Lô hàng: </span>
+                  <strong className="font-mono text-slate-900">{pokaYokeModal.batchCode}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400">Nông sản: </span>
-                  <strong className="text-slate-100">{pokaYokeModal.productName}</strong>
+                  <span className="text-slate-500">Nông sản: </span>
+                  <strong className="text-slate-900">{pokaYokeModal.productName}</strong>
                 </div>
                 <div className="sm:col-span-2">
-                  <span className="text-slate-400">Tình trạng kiểm định: </span>
-                  <span className="inline-block rounded-full border border-rose-400/40 bg-rose-500/20 px-2 py-0.5 font-bold text-rose-300">
+                  <span className="text-slate-500">Tình trạng kiểm định: </span>
+                  <span className="inline-flex items-center whitespace-nowrap rounded-full bg-rose-100 px-2.5 py-0.5 font-bold text-rose-800">
                     {pokaYokeModal.inspectionLabel}
                   </span>
                 </div>
               </div>
 
               <div>
-                <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                  <ShieldAlert className="h-3.5 w-3.5 text-rose-400" />
+                <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                  <ShieldAlert className="h-3.5 w-3.5 text-rose-600" />
                   Phản hồi từ Backend / PostgreSQL Trigger:
                 </div>
-                <div className="rounded-lg border border-rose-400/30 bg-slate-950/80 p-3 font-mono text-xs text-rose-300 break-words">
+                <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-3 font-mono text-xs text-rose-800 break-words">
                   {pokaYokeModal.detail}
                 </div>
               </div>
@@ -208,7 +208,7 @@ export default function WarehouseWorkspace({ user }) {
                 <button
                   type="button"
                   onClick={() => setPokaYokeModal(null)}
-                  className="rounded-lg bg-rose-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400/50"
+                  className="rounded-lg bg-rose-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500/40"
                 >
                   Đóng cảnh báo
                 </button>
@@ -221,17 +221,17 @@ export default function WarehouseWorkspace({ user }) {
       {successMsg && (
         <div
           role="status"
-          className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/40 bg-emerald-950/60 p-4 text-sm font-medium text-emerald-200 backdrop-blur"
+          className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800"
         >
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
             <span>{successMsg}</span>
           </div>
           <button
             type="button"
             onClick={() => setSuccessMsg('')}
             aria-label="Đóng thông báo thành công"
-            className="rounded p-1 text-emerald-300 hover:bg-emerald-900/60"
+            className="rounded p-1 text-emerald-700 hover:bg-emerald-100"
           >
             <X className="h-4 w-4" />
           </button>
@@ -239,7 +239,7 @@ export default function WarehouseWorkspace({ user }) {
       )}
 
       {auditWarning && (
-        <div className="rounded-xl border border-amber-400/40 bg-amber-950/50 p-3 text-xs text-amber-200">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
           {auditWarning}
         </div>
       )}
@@ -247,17 +247,17 @@ export default function WarehouseWorkspace({ user }) {
       {apiError && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-xl border border-rose-400/40 bg-rose-950/50 p-4 text-xs text-rose-200"
+          className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800"
         >
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
             <span>{apiError}</span>
           </div>
           <button
             type="button"
             onClick={() => setApiError('')}
             aria-label="Đóng thông báo lỗi"
-            className="rounded p-1 text-rose-300 hover:bg-rose-900/60"
+            className="rounded p-1 text-rose-600 hover:bg-rose-100"
           >
             <X className="h-4 w-4" />
           </button>
@@ -266,29 +266,29 @@ export default function WarehouseWorkspace({ user }) {
 
       <section
         aria-labelledby="warehouse-heading"
-        className="nodus-glass-card rounded-[20px] p-6"
+        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <PackageCheck className="h-5 w-5 text-sky-400" />
-              <h2 id="warehouse-heading" className="text-lg font-bold text-slate-100">
+              <PackageCheck className="h-5 w-5 text-sky-600" />
+              <h2 id="warehouse-heading" className="text-lg font-bold text-slate-900">
                 Bàn làm việc Thủ kho — Kiểm soát Nhập kho (Poka-yoke)
               </h2>
-              <span className="rounded-full border border-emerald-400/25 bg-slate-900/70 px-2.5 py-0.5 text-xs font-semibold text-sky-300">
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
                 {batches.length} lô
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-500">
               Hệ thống tự động chặn nhập kho nếu lô nông sản chưa được kiểm định{' '}
-              <span className="font-semibold text-emerald-300">Đạt chuẩn</span>.
+              <span className="font-semibold text-emerald-700">Đạt chuẩn</span>.
             </p>
           </div>
           <button
             type="button"
             disabled={loadingList}
             onClick={loadBatches}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loadingList ? 'animate-spin' : ''}`} />
             {loadingList ? 'Đang tải...' : 'Làm mới'}
@@ -298,16 +298,16 @@ export default function WarehouseWorkspace({ user }) {
         {loadError && (
           <div
             role="alert"
-            className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-rose-400/40 bg-rose-950/50 p-3 text-xs text-rose-200"
+            className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
           >
             <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
               <span>{loadError}</span>
             </div>
             <button
               type="button"
               onClick={loadBatches}
-              className="shrink-0 rounded border border-rose-400/40 bg-rose-900/50 px-2.5 py-1 font-semibold text-rose-100 hover:bg-rose-900"
+              className="shrink-0 rounded border border-rose-200 bg-white px-2.5 py-1 font-semibold text-rose-700 hover:bg-rose-100"
             >
               Thử lại
             </button>
@@ -317,21 +317,21 @@ export default function WarehouseWorkspace({ user }) {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-emerald-400/20 text-xs uppercase text-slate-400">
-                <th className="py-2 pr-3">Mã lô</th>
-                <th className="py-2 pr-3">Nông sản</th>
-                <th className="py-2 pr-3">Sản lượng</th>
-                <th className="py-2 pr-3">Trạng thái</th>
-                <th className="py-2 pr-3">Kết quả Kiểm định</th>
-                <th className="py-2">Thao tác</th>
+              <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                <th className="whitespace-nowrap py-2 pr-3">Mã lô</th>
+                <th className="whitespace-nowrap py-2 pr-3">Nông sản</th>
+                <th className="whitespace-nowrap py-2 pr-3">Sản lượng</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái</th>
+                <th className="whitespace-nowrap py-2 pr-3">Kết quả Kiểm định</th>
+                <th className="whitespace-nowrap py-2">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-emerald-400/10">
+            <tbody className="divide-y divide-slate-100">
               {loadingList && batches.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-sm text-slate-400">
                     <span className="inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Đang tải danh sách lô hàng...
                     </span>
                   </td>
@@ -347,12 +347,12 @@ export default function WarehouseWorkspace({ user }) {
                     const isProcessing = loadingId === b.id;
 
                     return (
-                      <tr key={b.id} className="transition hover:bg-emerald-500/5">
-                        <td className="py-3 pr-3 font-mono text-xs font-semibold text-slate-200">
+                      <tr key={b.id} className="hover:bg-slate-50">
+                        <td className="py-3 pr-3 font-mono text-xs font-semibold text-slate-800">
                           {b.batch_code}
                         </td>
-                        <td className="py-3 pr-3 font-medium text-white">{b.product_name}</td>
-                        <td className="py-3 pr-3 text-slate-300">
+                        <td className="py-3 pr-3 font-medium text-slate-900">{b.product_name}</td>
+                        <td className="py-3 pr-3 text-slate-600">
                           {b.quantity} {b.unit}
                         </td>
                         <td className="py-3 pr-3">
@@ -367,23 +367,23 @@ export default function WarehouseWorkspace({ user }) {
                         <td className="py-3 pr-3">
                           {insp ? (
                             <span
-                              className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-bold ${
+                              className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${
                                 insp.result === 'PASSED'
-                                  ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300'
-                                  : 'border-rose-400/40 bg-rose-500/15 text-rose-300'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
                               }`}
                             >
                               {getInspectionResultLabel(insp.result)}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center whitespace-nowrap rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
+                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
                               Chưa kiểm định
                             </span>
                           )}
                         </td>
                         <td className="py-3">
                           {alreadyStored ? (
-                            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               Đã nhập kho
                             </span>
@@ -392,7 +392,7 @@ export default function WarehouseWorkspace({ user }) {
                               type="button"
                               disabled={Boolean(loadingId)}
                               onClick={() => handleIntake(b)}
-                              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400/40 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500/40 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                               {isProcessing ? 'Đang xử lý...' : 'Nhập kho'}
