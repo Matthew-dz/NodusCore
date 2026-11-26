@@ -19,19 +19,10 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { DEFAULT_TENANT_UUID, DEFAULT_ZONE_UUID } from '../lib/graphql';
+import { getBatchStatusLabel, getBatchStatusStyle } from '../lib/statusLabels';
 import { createFarmerBatch, fetchFarmerWorkspaceData } from '../services/farmerBatchService';
 
 const UNIT_SUGGESTIONS = ['kg', 'tấn', 'tạ', 'thùng', 'giỏ', 'bó'];
-
-const STATUS_BADGE_STYLES = {
-  CREATED: 'border-slate-500/40 bg-slate-800/70 text-slate-200',
-  HARVESTED: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300',
-  INSPECTING: 'border-amber-400/40 bg-amber-500/15 text-amber-300',
-  IN_STORAGE: 'border-sky-400/40 bg-sky-500/15 text-sky-300',
-  DISTRIBUTING: 'border-purple-400/40 bg-purple-500/15 text-purple-300',
-  SOLD: 'border-indigo-400/40 bg-indigo-500/15 text-indigo-300',
-  REJECTED: 'border-rose-400/40 bg-rose-500/15 text-rose-300',
-};
 
 function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -926,12 +917,11 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                       </td>
                       <td className="py-2.5 pr-3">
                         <span
-                          className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                            STATUS_BADGE_STYLES[b.status] ||
-                            'border-slate-500/40 bg-slate-800/70 text-slate-200'
-                          }`}
+                          className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
+                            b.status
+                          )}`}
                         >
-                          {b.status}
+                          {getBatchStatusLabel(b.status)}
                         </span>
                       </td>
                       <td className="py-2.5">

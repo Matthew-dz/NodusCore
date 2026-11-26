@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Download, ExternalLink, Truck } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { computeSha256Hex, DEFAULT_TENANT_UUID, graphqlRequest } from '../lib/graphql';
+import { getBatchStatusLabel } from '../lib/statusLabels';
 
 const DISTRIBUTOR_BATCHES_QUERY = `
   query DistributorBatches {
@@ -130,9 +131,8 @@ export default function DistributorWorkspace({ user, onNavigate }) {
           </h2>
         </div>
         <p className="mt-1 text-xs text-slate-400">
-          Chỉ hiển thị các lô nông sản đã vượt qua kiểm định và nhập kho (
-          <code className="font-mono text-sky-300">IN_STORAGE</code> /{' '}
-          <code className="font-mono text-purple-300">DISTRIBUTING</code>).
+          Chỉ hiển thị các lô nông sản đã kiểm định đạt chuẩn và đã nhập kho (Đã nhập kho / Đang
+          phân phối).
         </p>
 
         {error && (
@@ -155,7 +155,7 @@ export default function DistributorWorkspace({ user, onNavigate }) {
                       {b.batch_code}
                     </span>
                     <span className="rounded-full border border-purple-400/40 bg-purple-500/15 px-2 py-0.5 text-[11px] font-semibold text-purple-300">
-                      {b.status}
+                      {getBatchStatusLabel(b.status)}
                     </span>
                   </div>
                   <h3 className="mt-1 text-base font-bold text-white">{b.product_name}</h3>

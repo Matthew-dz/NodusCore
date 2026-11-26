@@ -11,20 +11,15 @@ import {
   X,
 } from 'lucide-react';
 import {
+  getBatchStatusLabel,
+  getBatchStatusStyle,
+  getInspectionResultLabel,
+} from '../lib/statusLabels';
+import {
   fetchQualityWarehouseBatches,
   isPokaYokeViolationError,
   submitWarehouseIntake,
 } from '../services/qualityWarehouseService';
-
-const BATCH_STATUS_BADGE = {
-  CREATED: 'border-slate-500/40 bg-slate-800/70 text-slate-200',
-  HARVESTED: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300',
-  INSPECTING: 'border-amber-400/40 bg-amber-500/15 text-amber-300',
-  IN_STORAGE: 'border-sky-400/40 bg-sky-500/15 text-sky-300',
-  DISTRIBUTING: 'border-purple-400/40 bg-purple-500/15 text-purple-300',
-  SOLD: 'border-indigo-400/40 bg-indigo-500/15 text-indigo-300',
-  REJECTED: 'border-rose-400/40 bg-rose-500/15 text-rose-300',
-};
 
 function buildPokaYokeAlert(batch, rawMessage) {
   const inspectionResult = batch?.inspections?.[0]?.result;
@@ -32,10 +27,10 @@ function buildPokaYokeAlert(batch, rawMessage) {
     return {
       batchCode: batch.batch_code,
       productName: batch.product_name,
-      inspectionLabel: 'FAILED (Không đạt)',
-      title: 'Poka-yoke chặn nhập kho: Lô hàng có kết quả kiểm định KHÔNG ĐẠT (FAILED)!',
+      inspectionLabel: 'Không đạt chuẩn',
+      title: 'Không thể nhập kho: Lô hàng có kết quả kiểm định Không đạt!',
       description:
-        'Lô nông sản này đã bị đánh dấu FAILED nên không đủ điều kiện an toàn để chuyển vào kho lưu trữ (IN_STORAGE).',
+        'Lô nông sản này chưa đạt yêu cầu chất lượng nên hệ thống chặn không cho đưa vào kho bảo quản.',
       detail: rawMessage,
     };
   }
@@ -43,10 +38,10 @@ function buildPokaYokeAlert(batch, rawMessage) {
   return {
     batchCode: batch.batch_code,
     productName: batch.product_name,
-    inspectionLabel: 'CHƯA KIỂM ĐỊNH',
-    title: 'Poka-yoke chặn nhập kho: Lô hàng chưa được kiểm định đạt chuẩn (PASSED)!',
+    inspectionLabel: 'Chưa kiểm định',
+    title: 'Không thể nhập kho: Lô hàng chưa được kiểm định đạt chuẩn!',
     description:
-      'Cơ chế kiểm soát lỗi Poka-yoke tại PostgreSQL đã từ chối thao tác nhập kho vì lô hàng chưa có phiếu kiểm định đạt chuẩn.',
+      'Hệ thống kiểm soát lỗi Poka-yoke đã chặn nhập kho vì lô nông sản này chưa có phiếu kiểm định đạt chuẩn.',
     detail: rawMessage,
   };
 }
@@ -117,7 +112,9 @@ export default function WarehouseWorkspace({ user }) {
         )
       );
       setSuccessMsg(
-        `Đã nhập kho thành công lô ${updatedBatch.batch_code} (${batch.product_name}) — trạng thái: ${updatedBatch.status}.`
+        `Đã nhập kho thành công lô ${updatedBatch.batch_code} (${batch.product_name}) — trạng thái: ${getBatchStatusLabel(
+          updatedBatch.status
+        )}.`
       );
       if (warning) {
         setAuditWarning(warning);
@@ -283,9 +280,8 @@ export default function WarehouseWorkspace({ user }) {
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-400">
-              CSDL PostgreSQL sẽ tự động chặn chuyển trạng thái sang{' '}
-              <code className="font-mono text-sky-300">IN_STORAGE</code> nếu lô chưa có phiếu kiểm
-              định <code className="font-mono text-emerald-300">PASSED</code>.
+              Hệ thống tự động chặn nhập kho nếu lô nông sản chưa được kiểm định{' '}
+              <span className="font-semibold text-emerald-300">Đạt chuẩn</span>.
             </p>
           </div>
           <button
@@ -361,12 +357,11 @@ export default function WarehouseWorkspace({ user }) {
                         </td>
                         <td className="py-3 pr-3">
                           <span
-                            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                              BATCH_STATUS_BADGE[b.status] ||
-                              'border-slate-500/40 bg-slate-800/70 text-slate-200'
-                            }`}
+                            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
+                              b.status
+                            )}`}
                           >
-                            {b.status}
+                            {getBatchStatusLabel(b.status)}
                           </span>
                         </td>
                         <td className="py-3 pr-3">
@@ -378,11 +373,11 @@ export default function WarehouseWorkspace({ user }) {
                                   : 'border-rose-400/40 bg-rose-500/15 text-rose-300'
                               }`}
                             >
-                              {insp.result}
+                              {getInspectionResultLabel(insp.result)}
                             </span>
                           ) : (
                             <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
-                              CHƯA KIỂM ĐỊNH
+                              Chưa kiểm định
                             </span>
                           )}
                         </td>

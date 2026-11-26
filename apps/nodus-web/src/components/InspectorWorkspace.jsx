@@ -9,19 +9,14 @@ import {
   X,
 } from 'lucide-react';
 import {
+  getBatchStatusLabel,
+  getBatchStatusStyle,
+  getInspectionResultLabel,
+} from '../lib/statusLabels';
+import {
   fetchQualityWarehouseBatches,
   submitBatchInspection,
 } from '../services/qualityWarehouseService';
-
-const BATCH_STATUS_BADGE = {
-  CREATED: 'border-slate-500/40 bg-slate-800/70 text-slate-200',
-  HARVESTED: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300',
-  INSPECTING: 'border-amber-400/40 bg-amber-500/15 text-amber-300',
-  IN_STORAGE: 'border-sky-400/40 bg-sky-500/15 text-sky-300',
-  DISTRIBUTING: 'border-purple-400/40 bg-purple-500/15 text-purple-300',
-  SOLD: 'border-indigo-400/40 bg-indigo-500/15 text-indigo-300',
-  REJECTED: 'border-rose-400/40 bg-rose-500/15 text-rose-300',
-};
 
 function validateInspectionForm({ agency, metrics }) {
   const errors = {};
@@ -133,7 +128,9 @@ export default function InspectorWorkspace({ user }) {
       );
 
       setMessage(
-        `Đã lưu phiếu kiểm định ${inspection.inspection_code} (${inspection.result}) cho lô ${selectedBatch.batch_code}.`
+        `Đã lưu phiếu kiểm định ${inspection.inspection_code} (${getInspectionResultLabel(
+          inspection.result
+        )}) cho lô ${selectedBatch.batch_code}.`
       );
       await loadBatches();
     } catch (err) {
@@ -168,7 +165,7 @@ export default function InspectorWorkspace({ user }) {
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-400">
-              Chọn một lô nông sản để lập phiếu kiểm định chất lượng (PASSED / FAILED).
+              Chọn một lô nông sản để đánh giá chất lượng (Đạt chuẩn / Không đạt).
             </p>
           </div>
           <button
@@ -246,12 +243,11 @@ export default function InspectorWorkspace({ user }) {
                         </td>
                         <td className="py-2.5 pr-3">
                           <span
-                            className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
-                              BATCH_STATUS_BADGE[b.status] ||
-                              'border-slate-500/40 bg-slate-800/70 text-slate-200'
-                            }`}
+                            className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
+                              b.status
+                            )}`}
                           >
-                            {b.status}
+                            {getBatchStatusLabel(b.status)}
                           </span>
                         </td>
                         <td className="py-2.5 pr-3">
@@ -263,7 +259,7 @@ export default function InspectorWorkspace({ user }) {
                                   : 'border-rose-400/40 bg-rose-500/15 text-rose-300'
                               }`}
                             >
-                              {latest.result}
+                              {getInspectionResultLabel(latest.result)}
                             </span>
                           ) : (
                             <span className="text-xs text-slate-400">Chưa kiểm định</span>
@@ -320,7 +316,9 @@ export default function InspectorWorkspace({ user }) {
               </div>
               <div className="mt-1 text-slate-400">
                 Sản lượng: {selectedBatch.quantity} {selectedBatch.unit} • Trạng thái:{' '}
-                <span className="font-semibold text-slate-200">{selectedBatch.status}</span>
+                <span className="font-semibold text-slate-200">
+                  {getBatchStatusLabel(selectedBatch.status)}
+                </span>
               </div>
             </div>
 
@@ -339,10 +337,10 @@ export default function InspectorWorkspace({ user }) {
                 className={inputClassName(false)}
               >
                 <option value="PASSED" className="bg-slate-900 text-slate-100">
-                  PASSED — Đạt chuẩn
+                  Đạt chuẩn — Đủ điều kiện nhập kho
                 </option>
                 <option value="FAILED" className="bg-slate-900 text-slate-100">
-                  FAILED — Không đạt
+                  Không đạt — Chưa đủ điều kiện
                 </option>
               </select>
             </div>

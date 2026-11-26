@@ -11,6 +11,13 @@ import {
   XCircle,
 } from 'lucide-react';
 import { graphqlRequest } from '../lib/graphql';
+import {
+  getAuditActionLabel,
+  getBatchStatusLabel,
+  getEventTypeLabel,
+  getInspectionResultLabel,
+  getStageLabel,
+} from '../lib/statusLabels';
 
 const TRACE_QUERY = `
   query PublicTraceBatch($key: String!) {
@@ -150,7 +157,7 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-emerald-400/15 pb-4">
               <div>
                 <span className="inline-block rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
-                  {batch.status}
+                  {getBatchStatusLabel(batch.status)}
                 </span>
                 <h2 className="mt-2 text-2xl font-bold text-white">{batch.product_name}</h2>
                 <p className="text-sm text-slate-400">
@@ -209,7 +216,7 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                             : 'text-rose-300'
                         }`}
                       >
-                        {latestInspection.result}
+                        {getInspectionResultLabel(latestInspection.result)}
                       </span>
                       <span className="text-xs text-slate-400">
                         ({latestInspection.inspection_code})
@@ -236,7 +243,7 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                     <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-4 ring-slate-900" />
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="rounded border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-300">
-                        {ev.stage} — {ev.event_type}
+                        {getStageLabel(ev.stage)} — {getEventTypeLabel(ev.event_type)}
                       </span>
                       <span className="text-xs text-slate-400">
                         {new Date(ev.occurred_at).toLocaleString('vi-VN')}
@@ -269,7 +276,7 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                   >
                     <div>
                       <span className="font-semibold text-slate-200">
-                        #{a.id} {a.action}
+                        #{a.id} {getAuditActionLabel(a.action)}
                       </span>
                       <span className="ml-2 text-slate-400">
                         {new Date(a.sealed_at).toLocaleString('vi-VN')}
