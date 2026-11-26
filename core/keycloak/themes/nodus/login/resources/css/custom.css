@@ -1,103 +1,196 @@
 /* Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0. */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+/* NodusCore DX-OS — AgriTech Clean Light Login Theme */
 
-/* 1. AgriTech Dark Emerald Gradient Background */
+:root {
+  --nodus-primary: #10b981;
+  --nodus-primary-hover: #059669;
+  --nodus-primary-tint: #ecfdf5;
+  --nodus-bg-body: #f8fafc;
+  --nodus-surface: #ffffff;
+  --nodus-border: #e2e8f0;
+  --nodus-input-border: #cbd5e1;
+  --nodus-text-heading: #0f172a;
+  --nodus-text-muted: #475569;
+}
+
+/* 1. Body & Background (Remove default grey pattern.svg) */
+html,
 body,
-.login-pf body {
-  background: linear-gradient(135deg, #061512 0%, #0d2822 100%) fixed !important;
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
-  color: #e2e8f0;
+.login-pf body,
+.pf-c-login,
+.pf-v5-c-login {
+  background: radial-gradient(at 0% 0%, var(--nodus-primary-tint) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, #f1f5f9 0px, transparent 50%),
+    var(--nodus-bg-body) !important;
+  background-image: radial-gradient(at 0% 0%, #ecfdf5 0px, transparent 50%),
+    radial-gradient(at 100% 100%, #f1f5f9 0px, transparent 50%) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif !important;
+  color: var(--nodus-text-heading);
   min-height: 100vh;
 }
 
-/* 2. Header Title with Jade Gradient */
-#kc-header-wrapper {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  background: linear-gradient(90deg, #34d399 0%, #10b981 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: none;
+/* 2. Header & Branding */
+#kc-header {
+  margin-bottom: 1.5rem;
+  text-align: center;
 }
 
-/* 3. Glassmorphism Login Card */
-.card-pf {
-  background: rgba(15, 23, 42, 0.75) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(52, 211, 153, 0.25) !important;
-  border-top: 1px solid rgba(52, 211, 153, 0.35) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45), 0 0 24px rgba(16, 185, 129, 0.08) !important;
-  color: #f1f5f9;
+#kc-header-wrapper {
+  font-size: 0 !important;
+  padding: 1.5rem 1rem 0.5rem;
+  text-align: center;
+}
+
+#kc-header-wrapper::before {
+  content: "NODUSCORE DX-OS";
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--nodus-text-heading);
+  line-height: 1.2;
+}
+
+#kc-header-wrapper::after {
+  content: "Nền tảng Truy xuất Nguồn gốc Nông sản Nguồn Mở";
+  display: block;
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--nodus-text-muted);
+}
+
+/* 3. Login Card */
+.card-pf,
+#kc-form-wrapper,
+.pf-c-login__main,
+.pf-v5-c-login__main {
+  background-color: var(--nodus-surface) !important;
+  border: 1px solid var(--nodus-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02) !important;
+  padding: 20px !important;
+}
+
+@media (min-width: 640px) {
+  .card-pf,
+  #kc-form-wrapper,
+  .pf-c-login__main,
+  .pf-v5-c-login__main {
+    padding: 32px !important;
+  }
 }
 
 #kc-page-title,
-.login-pf-page .login-pf-header h1 {
-  color: #f8fafc !important;
-  font-weight: 700;
+.login-pf-page .login-pf-header h1,
+.pf-c-title,
+.pf-v5-c-title {
+  color: var(--nodus-text-heading) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
 }
 
-.control-label,
-label {
-  color: #cbd5e1 !important;
-  font-weight: 500;
+/* 4. Form Controls (Labels & Inputs) */
+label.pf-c-form__label,
+label.pf-v5-c-form__label,
+#kc-form-login label,
+.control-label {
+  color: var(--nodus-text-muted) !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  margin-bottom: 0.375rem;
+  display: inline-block;
 }
 
-/* 4. Input Controls with Emerald Focus Glow */
-.form-control {
-  background-color: rgba(15, 23, 42, 0.65) !important;
-  color: #f8fafc !important;
-  border: 1px solid rgba(52, 211, 153, 0.35) !important;
-  border-radius: 10px !important;
-  padding: 10px 14px !important;
-  height: auto !important;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+input[type="text"],
+input[type="password"],
+.form-control,
+.pf-c-form-control,
+.pf-v5-c-form-control {
+  background-color: var(--nodus-surface) !important;
+  border: 1px solid var(--nodus-input-border) !important;
+  border-radius: 8px !important;
+  min-height: 42px !important;
+  padding: 0.5rem 0.75rem !important;
+  color: var(--nodus-text-heading) !important;
+  font-size: 0.9375rem !important;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.form-control::placeholder {
-  color: #64748b;
-}
-
-.form-control:focus {
-  border-color: #10b981 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.28), 0 0 12px rgba(52, 211, 153, 0.25) !important;
+input[type="text"]:focus,
+input[type="password"]:focus,
+.form-control:focus,
+.pf-c-form-control:focus,
+.pf-v5-c-form-control:focus {
+  border-color: var(--nodus-primary) !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
   outline: none !important;
 }
 
-/* 5. Tech-Green Gradient Sign In Button */
+/* 5. Submit / Sign In Button */
 #kc-login,
-.btn-primary {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+input[type="submit"],
+.btn-primary,
+.pf-c-button.pf-m-primary,
+.pf-v5-c-button.pf-m-primary {
+  background-color: var(--nodus-primary) !important;
+  background-image: none !important;
   border: none !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   color: #ffffff !important;
   font-weight: 600 !important;
-  padding: 11px 18px !important;
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.3) !important;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease !important;
+  font-size: 0.9375rem !important;
+  min-height: 44px !important;
+  width: 100%;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2) !important;
+  transition: background-color 0.15s ease, transform 0.1s ease !important;
 }
 
 #kc-login:hover,
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.45) !important;
-  filter: brightness(1.06);
-}
-
 #kc-login:active,
-.btn-primary:active {
-  transform: translateY(0);
+input[type="submit"]:hover,
+input[type="submit"]:active,
+.btn-primary:hover,
+.btn-primary:active,
+.pf-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:hover {
+  background-color: var(--nodus-primary-hover) !important;
 }
 
-/* Links & Secondary Text */
-a,
-#kc-registration a {
-  color: #34d399 !important;
+/* 6. Alerts / Feedback */
+.alert-error,
+.pf-c-alert.pf-m-danger,
+.pf-v5-c-alert.pf-m-danger,
+#input-error {
+  background-color: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+  color: #991b1b !important;
+  border-radius: 8px !important;
+  padding: 0.75rem 1rem !important;
+  font-size: 0.875rem !important;
+}
+
+.alert-info,
+.pf-c-alert.pf-m-info,
+.pf-v5-c-alert.pf-m-info {
+  background-color: var(--nodus-primary-tint) !important;
+  border: 1px solid #a7f3d0 !important;
+  color: #065f46 !important;
+  border-radius: 8px !important;
+  padding: 0.75rem 1rem !important;
+  font-size: 0.875rem !important;
+}
+
+/* Links */
+a {
+  color: var(--nodus-primary-hover) !important;
+  font-weight: 500;
 }
 
 a:hover {
-  color: #6ee7b7 !important;
+  color: var(--nodus-primary) !important;
+  text-decoration: underline;
 }
