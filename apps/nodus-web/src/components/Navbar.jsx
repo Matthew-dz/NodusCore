@@ -14,17 +14,17 @@ import {
 import { ROLE_LABELS } from '../lib/keycloak';
 
 const ROLE_COLORS = {
-  farmer: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  coop_admin: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  inspector: 'bg-amber-100 text-amber-800 border-amber-200',
-  warehouse_keeper: 'bg-sky-100 text-sky-800 border-sky-200',
-  distributor: 'bg-purple-100 text-purple-800 border-purple-200',
+  farmer: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300',
+  coop_admin: 'border-indigo-400/40 bg-indigo-500/15 text-indigo-300',
+  inspector: 'border-amber-400/40 bg-amber-500/15 text-amber-300',
+  warehouse_keeper: 'border-sky-400/40 bg-sky-500/15 text-sky-300',
+  distributor: 'border-purple-400/40 bg-purple-500/15 text-purple-300',
 };
 
 function RoleBadge({ role }) {
   if (!role) {
     return (
-      <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+      <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
         Chưa xác định vai trò
       </span>
     );
@@ -33,7 +33,7 @@ function RoleBadge({ role }) {
   return (
     <span
       className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-        ROLE_COLORS[role] || 'border-slate-200 bg-slate-100 text-slate-700'
+        ROLE_COLORS[role] || 'border-slate-500/40 bg-slate-800/70 text-slate-200'
       }`}
     >
       {ROLE_LABELS[role] ? `${ROLE_LABELS[role]} (${role})` : role}
@@ -61,22 +61,22 @@ export default function Navbar({
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-emerald-400/20 bg-slate-950/75 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
           <button
             type="button"
             onClick={() => handleNavClick('/')}
-            className="flex items-center gap-2 text-left focus:outline-none focus:ring-2 focus:ring-emerald-500/30 rounded-lg"
+            className="flex items-center gap-2.5 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-950/60">
               <Sprout className="h-5 w-5" />
             </span>
             <div>
-              <div className="text-sm font-bold tracking-tight text-slate-900">
+              <div className="bg-gradient-to-r from-emerald-300 to-emerald-400 bg-clip-text text-sm font-bold tracking-tight text-transparent">
                 NodusCore DX-OS
               </div>
-              <div className="text-[11px] text-slate-500">
+              <div className="text-[11px] text-slate-400">
                 Open-Core Agricultural Traceability
               </div>
             </div>
@@ -86,10 +86,10 @@ export default function Navbar({
             <button
               type="button"
               onClick={() => handleNavClick('/')}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                 isWorkspaceActive
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'border border-emerald-400/30 bg-emerald-500/15 text-emerald-300'
+                  : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
               }`}
             >
               Bàn làm việc
@@ -97,10 +97,10 @@ export default function Navbar({
             <button
               type="button"
               onClick={() => handleNavClick('/trace')}
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                 isTraceActive
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'border border-emerald-400/30 bg-emerald-500/15 text-emerald-300'
+                  : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
               }`}
             >
               <QrCode className="h-4 w-4" />
@@ -111,26 +111,27 @@ export default function Navbar({
 
         <div className="flex items-center gap-2 sm:gap-3">
           {authStatus === 'loading' ? (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-slate-900/70 px-3 py-1.5 text-xs font-medium text-slate-300">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
               <span className="hidden sm:inline">Đang kiểm tra SSO...</span>
             </span>
           ) : user ? (
             <>
               <div className="hidden flex-col items-end sm:flex">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-800">{user.username}</span>
+                  <span className="text-sm font-semibold text-slate-100">{user.username}</span>
                   <RoleBadge role={user.role} />
                 </div>
-                <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                  <ShieldCheck className="h-3 w-3 text-emerald-600" />
-                  tenant_id: <code className="font-mono">{user.tenantId || 'N/A'}</code>
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+                  <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                  tenant_id:{' '}
+                  <code className="font-mono text-emerald-300">{user.tenantId || 'N/A'}</code>
                 </span>
               </div>
               <button
                 type="button"
                 onClick={onLogout}
-                className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400/30 sm:inline-flex"
+                className="hidden items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-slate-900/70 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400/30 sm:inline-flex"
               >
                 <LogOut className="h-4 w-4" />
                 Đăng xuất
@@ -140,16 +141,16 @@ export default function Navbar({
             <button
               type="button"
               onClick={onRetry || onLogin}
-              className="hidden items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 sm:inline-flex"
+              className="hidden items-center gap-1.5 rounded-lg border border-rose-400/40 bg-rose-950/60 px-3 py-1.5 text-xs font-semibold text-rose-200 transition hover:bg-rose-900/70 sm:inline-flex"
             >
-              <AlertTriangle className="h-3.5 w-3.5" />
+              <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
               Thử kết nối SSO
             </button>
           ) : (
             <button
               type="button"
               onClick={onLogin}
-              className="hidden items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 sm:inline-flex"
+              className="nodus-btn-primary hidden items-center gap-1.5 rounded-[10px] px-4 py-2 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40 sm:inline-flex"
             >
               <LogIn className="h-4 w-4" />
               Đăng nhập Keycloak SSO
@@ -161,7 +162,7 @@ export default function Navbar({
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             aria-label={mobileMenuOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
             aria-expanded={mobileMenuOpen}
-            className="inline-flex items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 sm:hidden"
+            className="inline-flex items-center justify-center rounded-lg border border-emerald-400/25 bg-slate-900/70 p-2 text-slate-200 hover:bg-slate-800 sm:hidden"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -169,15 +170,15 @@ export default function Navbar({
       </div>
 
       {mobileMenuOpen && (
-        <div className="border-t border-slate-200 bg-white px-4 py-3 sm:hidden">
+        <div className="border-t border-emerald-400/20 bg-slate-950/90 px-4 py-3 backdrop-blur-xl sm:hidden">
           <nav className="flex flex-col gap-1" aria-label="Điều hướng di động">
             <button
               type="button"
               onClick={() => handleNavClick('/')}
               className={`rounded-lg px-3 py-2 text-left text-sm font-medium ${
                 isWorkspaceActive
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'text-slate-700 hover:bg-slate-50'
+                  ? 'border border-emerald-400/30 bg-emerald-500/15 text-emerald-300'
+                  : 'text-slate-200 hover:bg-slate-800'
               }`}
             >
               Bàn làm việc
@@ -187,8 +188,8 @@ export default function Navbar({
               onClick={() => handleNavClick('/trace')}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-left text-sm font-medium ${
                 isTraceActive
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'text-slate-700 hover:bg-slate-50'
+                  ? 'border border-emerald-400/30 bg-emerald-500/15 text-emerald-300'
+                  : 'text-slate-200 hover:bg-slate-800'
               }`}
             >
               <QrCode className="h-4 w-4" />
@@ -196,14 +197,15 @@ export default function Navbar({
             </button>
           </nav>
 
-          <div className="mt-3 border-t border-slate-100 pt-3">
+          <div className="mt-3 border-t border-emerald-400/15 pt-3">
             {user ? (
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <div className="text-sm font-semibold text-slate-900">{user.username}</div>
-                    <div className="text-xs text-slate-500">
-                      tenant_id: <code className="font-mono">{user.tenantId || 'N/A'}</code>
+                    <div className="text-sm font-semibold text-white">{user.username}</div>
+                    <div className="text-xs text-slate-400">
+                      tenant_id:{' '}
+                      <code className="font-mono text-emerald-300">{user.tenantId || 'N/A'}</code>
                     </div>
                   </div>
                   <RoleBadge role={user.role} />
@@ -214,7 +216,7 @@ export default function Navbar({
                     setMobileMenuOpen(false);
                     onLogout();
                   }}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-400/25 bg-slate-900/70 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
                 >
                   <LogOut className="h-4 w-4" />
                   Đăng xuất
@@ -227,9 +229,9 @@ export default function Navbar({
                   setMobileMenuOpen(false);
                   (onRetry || onLogin)();
                 }}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-rose-400/40 bg-rose-950/60 px-3 py-2 text-sm font-semibold text-rose-200 hover:bg-rose-900/70"
               >
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4 text-rose-400" />
                 Thử kết nối SSO
               </button>
             ) : authStatus !== 'loading' ? (
@@ -239,7 +241,7 @@ export default function Navbar({
                   setMobileMenuOpen(false);
                   onLogin();
                 }}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                className="nodus-btn-primary inline-flex w-full items-center justify-center gap-1.5 rounded-[10px] px-4 py-2 text-sm font-semibold text-white"
               >
                 <LogIn className="h-4 w-4" />
                 Đăng nhập Keycloak SSO

@@ -5,14 +5,22 @@ export const LIST_BATCHES_QUERY = `
   query FarmerBatches {
     batches(order_by: { created_at: desc }, limit: 20) {
       id
+      tenant_id
+      zone_id
       batch_code
       public_trace_key
       product_name
       quantity
       unit
       harvest_date
+      expiry_date
       status
       created_at
+    }
+    tenants(order_by: { name: asc }) {
+      id
+      code
+      name
     }
     production_zones(order_by: { zone_code: asc }) {
       id
@@ -35,6 +43,7 @@ export const INSERT_BATCH_MUTATION = `
     $quantity: numeric!
     $unit: String!
     $harvest_date: date
+    $expiry_date: date
   ) {
     insert_batches_one(
       object: {
@@ -46,16 +55,20 @@ export const INSERT_BATCH_MUTATION = `
         quantity: $quantity
         unit: $unit
         harvest_date: $harvest_date
+        expiry_date: $expiry_date
         status: "HARVESTED"
       }
     ) {
       id
+      tenant_id
+      zone_id
       batch_code
       public_trace_key
       product_name
       quantity
       unit
       harvest_date
+      expiry_date
       status
       created_at
     }
@@ -106,6 +119,7 @@ export async function fetchFarmerWorkspaceData({ token, role }) {
 
   return {
     batches: data?.batches || [],
+    tenants: data?.tenants || [],
     zones: data?.production_zones || [],
   };
 }
@@ -118,6 +132,7 @@ export async function createFarmerBatch({
   zoneName,
   productName,
   harvestDate,
+  expiryDate,
   quantity,
   unit,
   actorUsername,
@@ -137,6 +152,7 @@ export async function createFarmerBatch({
       quantity: Number(quantity),
       unit: unit.trim() || 'kg',
       harvest_date: harvestDate || null,
+      expiry_date: expiryDate || null,
     },
     token,
     role,
@@ -155,6 +171,8 @@ export async function createFarmerBatch({
       product_name: batch.product_name,
       quantity: batch.quantity,
       unit: batch.unit,
+      harvest_date: batch.harvest_date,
+      expiry_date: batch.expiry_date,
       actor: actorUsername,
     };
     const sha256 = await computeSha256Hex(snapshot);
