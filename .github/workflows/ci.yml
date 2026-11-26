@@ -12,11 +12,6 @@ jobs:
   verify-core-infrastructure:
     name: Validate Docker Compose & Core Config
     runs-on: ubuntu-latest
-    paths:
-      - 'core/**'
-      - 'docker-compose.yml'
-      - '.env.example'
-      - '.github/workflows/ci.yml'
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -33,9 +28,6 @@ jobs:
   build-frontend-web:
     name: Build & Lint nodus-web (SPA)
     runs-on: ubuntu-latest
-    paths:
-      - 'apps/nodus-web/**'
-      - '.github/workflows/ci.yml'
     defaults:
       run:
         working-directory: apps/nodus-web
