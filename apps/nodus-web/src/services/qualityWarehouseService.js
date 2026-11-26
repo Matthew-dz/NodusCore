@@ -96,6 +96,7 @@ const LOG_STORAGE_EVENT = `
   mutation LogStorageEvent(
     $tenant_id: uuid!
     $batch_id: uuid!
+    $location: String!
     $payload: jsonb!
     $sha256_hash: bpchar!
   ) {
@@ -105,7 +106,7 @@ const LOG_STORAGE_EVENT = `
         batch_id: $batch_id
         stage: "STORAGE"
         event_type: "STORED_IN_WAREHOUSE"
-        location: "Kho lạnh Trung tâm HTX Đà Nẵng"
+        location: $location
         payload: $payload
       }
     ) {
@@ -150,7 +151,8 @@ export async function submitBatchInspection({
   batch,
   result,
   agency,
-  metrics,
+  brix,
+  residueTest,
   notes,
   actorUsername,
 }) {
@@ -163,13 +165,18 @@ export async function submitBatchInspection({
 
   const tenantId = batch.tenant_id || DEFAULT_TENANT_UUID;
   const inspectionCode = `INSP-${Date.now().toString(36).toUpperCase()}`;
-  const combinedNotes = `[Đơn vị: ${agency.trim()}] [Chỉ số: ${metrics.trim()}] ${notes.trim()}`.trim();
+  const brixNum = Number(brix);
+  const metricsSummary = `Brix: ${brixNum}%, Dư lượng BVTV: ${residueTest.trim()}`;
+  const combinedNotes = `[Đơn vị: ${agency.trim()}] [Chỉ số: ${metricsSummary}] ${notes.trim()}`.trim();
   const payload = {
     batch_code: batch.batch_code,
     inspection_code: inspectionCode,
     result,
     agency: agency.trim(),
-    metrics: metrics.trim(),
+    brix: brixNum,
+    residue_test: residueTest.trim(),
+    metrics: metricsSummary,
+    notes: notes.trim(),
     inspector: actorUsername,
   };
   const sha256 = await computeSha256Hex(payload);
@@ -199,7 +206,14 @@ export async function submitBatchInspection({
   return { inspection, updatedBatch };
 }
 
-export async function submitWarehouseIntake({ token, role, batch, actorUsername }) {
+export async function submitWarehouseIntake({
+  token,
+  role,
+  batch,
+  actorUsername,
+  storageLocation = 'Kho lạnh Trung tâm HTX Đà Nẵng - Kệ A1',
+  storageTemp = 4,
+}) {
   if (!batch?.id) {
     throw new Error('Không xác định được lô hàng cần nhập kho.');
   }
@@ -219,9 +233,12 @@ export async function submitWarehouseIntake({ token, role, batch, actorUsername 
   let auditWarning = '';
   try {
     const tenantId = batch.tenant_id || DEFAULT_TENANT_UUID;
+    const resolvedLocation = `${storageLocation.trim()} (${Number(storageTemp)}°C)`;
     const payload = {
       batch_code: batch.batch_code,
       warehouse_keeper: actorUsername,
+      storage_location: storageLocation.trim(),
+      temperature_c: Number(storageTemp),
       status: updatedBatch.status,
     };
     const sha256 = await computeSha256Hex(payload);
@@ -231,6 +248,7 @@ export async function submitWarehouseIntake({ token, role, batch, actorUsername 
       variables: {
         tenant_id: tenantId,
         batch_id: batch.id,
+        location: resolvedLocation,
         payload,
         sha256_hash: sha256,
       },

@@ -8,6 +8,8 @@ import {
   PackageCheck,
   RefreshCw,
   ShieldAlert,
+  Thermometer,
+  Warehouse,
   X,
 } from 'lucide-react';
 import {
@@ -60,6 +62,10 @@ function buildPokaYokeAlert(batch, rawMessage) {
 
 export default function WarehouseWorkspace({ user }) {
   const [batches, setBatches] = useState([]);
+  const [storageLocation, setStorageLocation] = useState(
+    'Kho lạnh Trung tâm HTX Đà Nẵng - Kệ A1'
+  );
+  const [storageTemp, setStorageTemp] = useState('4.0');
   const [loadingList, setLoadingList] = useState(false);
   const [loadingId, setLoadingId] = useState(null);
   const [pokaYokeModal, setPokaYokeModal] = useState(null);
@@ -103,6 +109,17 @@ export default function WarehouseWorkspace({ user }) {
   const handleIntake = async (batch) => {
     if (inFlightRef.current) return;
 
+    const trimmedLoc = storageLocation.trim();
+    const numericTemp = Number(storageTemp);
+    if (!trimmedLoc) {
+      setApiError('Vui lòng nhập vị trí kho / kệ bảo quản trước khi nhập kho.');
+      return;
+    }
+    if (storageTemp === '' || !Number.isFinite(numericTemp) || numericTemp < -30 || numericTemp > 50) {
+      setApiError('Nhiệt độ bảo quản phải nằm trong khoảng -30°C đến 50°C.');
+      return;
+    }
+
     inFlightRef.current = true;
     setLoadingId(batch.id);
     setPokaYokeModal(null);
@@ -116,6 +133,8 @@ export default function WarehouseWorkspace({ user }) {
         role: user.role,
         batch,
         actorUsername: user.username,
+        storageLocation: trimmedLoc,
+        storageTemp: numericTemp,
       });
 
       setBatches((prev) =>
@@ -125,7 +144,7 @@ export default function WarehouseWorkspace({ user }) {
       );
       const nextIntakeInfo = getWarehouseIntakeStatusInfo(updatedBatch.status);
       setSuccessMsg(
-        `Đã nhập kho thành công lô ${updatedBatch.batch_code} (${batch.product_name}) — ${nextIntakeInfo.label}.`
+        `Đã nhập kho thành công lô ${updatedBatch.batch_code} (${batch.product_name}) tại ${trimmedLoc} (${numericTemp}°C) — ${nextIntakeInfo.label}.`
       );
       if (warning) {
         setAuditWarning(warning);
@@ -306,6 +325,45 @@ export default function WarehouseWorkspace({ user }) {
           </button>
         </div>
 
+        <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-12">
+          <div className="sm:col-span-8">
+            <label
+              htmlFor="warehouse-location"
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-700"
+            >
+              <Warehouse className="h-3.5 w-3.5 text-sky-600" />
+              Kho / Vị trí kệ tiếp nhận <span className="text-rose-600">*</span>
+            </label>
+            <input
+              id="warehouse-location"
+              type="text"
+              value={storageLocation}
+              onChange={(e) => setStorageLocation(e.target.value)}
+              placeholder="Ví dụ: Kho lạnh Trung tâm HTX Đà Nẵng - Kệ A1"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            />
+          </div>
+          <div className="sm:col-span-4">
+            <label
+              htmlFor="warehouse-temp"
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-700"
+            >
+              <Thermometer className="h-3.5 w-3.5 text-sky-600" />
+              Nhiệt độ bảo quản (°C) <span className="text-rose-600">*</span>
+            </label>
+            <input
+              id="warehouse-temp"
+              type="number"
+              min="-30"
+              max="50"
+              step="0.5"
+              value={storageTemp}
+              onChange={(e) => setStorageTemp(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            />
+          </div>
+        </div>
+
         {loadError && (
           <div
             role="alert"
@@ -353,6 +411,8 @@ export default function WarehouseWorkspace({ user }) {
                     const inspectionInfo = getInspectionStatusInfo(b.inspections);
                     const intakeInfo = getWarehouseIntakeStatusInfo(b.status);
                     const alreadyReceived = intakeInfo.code === 'RECEIVED';
+                    const isRejectedOrFailed =
+                      b.status === 'REJECTED' || inspectionInfo.code === 'FAILED';
                     const isProcessing = loadingId === b.id;
 
                     return (
@@ -384,6 +444,22 @@ export default function WarehouseWorkspace({ user }) {
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               Đã nhập kho
                             </span>
+                          ) : isRejectedOrFailed ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="inline-flex items-center whitespace-nowrap text-xs font-medium text-rose-700">
+                                Không đủ điều kiện
+                              </span>
+                              <button
+                                type="button"
+                                disabled={Boolean(loadingId)}
+                                onClick={() => handleIntake(b)}
+                                title="Thử nhập kho để kiểm chứng cơ chế chặn Poka-yoke từ PostgreSQL"
+                                className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                {isProcessing ? 'Đang kiểm tra...' : 'Thử nhập kho (Poka-yoke)'}
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"

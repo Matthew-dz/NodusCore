@@ -18,14 +18,41 @@ import {
   submitBatchInspection,
 } from '../services/qualityWarehouseService';
 
-function validateInspectionForm({ agency, metrics }) {
+const DEFAULT_PASS_NOTE = 'Đạt tiêu chuẩn VietGAP xuất kho.';
+
+const RESIDUE_TEST_OPTIONS = [
+  'Không phát hiện (Âm tính)',
+  'Phát hiện vượt ngưỡng (Dương tính)',
+  'Chưa xác định',
+];
+
+function validateInspectionForm({ result, agency, brix, residueTest, notes }) {
   const errors = {};
+  const brixNum = Number(brix);
+  const trimmedNotes = notes.trim();
+
   if (!agency.trim()) {
     errors.agency = 'Vui lòng nhập đơn vị kiểm định.';
   }
-  if (!metrics.trim()) {
-    errors.metrics = 'Vui lòng nhập chỉ số kiểm nghiệm.';
+
+  if (brix === '' || brix === null || brix === undefined) {
+    errors.brix = 'Vui lòng nhập độ Brix.';
+  } else if (!Number.isFinite(brixNum) || brixNum < 0 || brixNum > 100) {
+    errors.brix = 'Độ Brix phải là số từ 0 đến 100 (%).';
   }
+
+  if (!residueTest.trim()) {
+    errors.residueTest = 'Vui lòng chọn kết quả test kit dư lượng.';
+  }
+
+  if (result === 'FAILED') {
+    if (!trimmedNotes || trimmedNotes.length < 5) {
+      errors.notes = 'Khi chọn Không đạt, vui lòng nhập rõ lý do từ chối (tối thiểu 5 ký tự).';
+    } else if (trimmedNotes === DEFAULT_PASS_NOTE) {
+      errors.notes = 'Không thể giữ nguyên ghi chú "Đạt tiêu chuẩn..." cho phiếu Không đạt.';
+    }
+  }
+
   return errors;
 }
 
@@ -34,8 +61,9 @@ export default function InspectorWorkspace({ user }) {
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [result, setResult] = useState('PASSED');
   const [agency, setAgency] = useState('Trung tâm Kiểm định Nông sản Đà Nẵng');
-  const [metrics, setMetrics] = useState('Brix: 14.5%, Dư lượng BVTV: Không phát hiện');
-  const [notes, setNotes] = useState('Đạt tiêu chuẩn VietGAP xuất kho.');
+  const [brix, setBrix] = useState('14.5');
+  const [residueTest, setResidueTest] = useState(RESIDUE_TEST_OPTIONS[0]);
+  const [notes, setNotes] = useState(DEFAULT_PASS_NOTE);
   const [loadingList, setLoadingList] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -95,13 +123,25 @@ export default function InspectorWorkspace({ user }) {
     setFieldErrors({});
   };
 
+  const handleResultChange = (nextResult) => {
+    setResult(nextResult);
+    clearFieldError('notes');
+    if (nextResult === 'FAILED') {
+      if (notes.trim() === DEFAULT_PASS_NOTE) {
+        setNotes('');
+      }
+    } else if (!notes.trim()) {
+      setNotes(DEFAULT_PASS_NOTE);
+    }
+  };
+
   const handleInspect = async (e) => {
     e.preventDefault();
     if (!selectedBatch || inFlightRef.current) return;
 
     setMessage('');
     setSubmitError('');
-    const errors = validateInspectionForm({ agency, metrics });
+    const errors = validateInspectionForm({ result, agency, brix, residueTest, notes });
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -116,7 +156,8 @@ export default function InspectorWorkspace({ user }) {
         batch: selectedBatch,
         result,
         agency,
-        metrics,
+        brix,
+        residueTest,
         notes,
         actorUsername: user.username,
       });
@@ -331,7 +372,7 @@ export default function InspectorWorkspace({ user }) {
                 id="inspector-result"
                 disabled={submitting}
                 value={result}
-                onChange={(e) => setResult(e.target.value)}
+                onChange={(e) => handleResultChange(e.target.value)}
                 className={inputClassName(false)}
               >
                 <option value="PASSED">Đạt chuẩn — Đủ điều kiện nhập kho</option>
@@ -363,28 +404,62 @@ export default function InspectorWorkspace({ user }) {
               )}
             </div>
 
-            <div>
-              <label
-                htmlFor="inspector-metrics"
-                className="block text-xs font-semibold text-slate-700"
-              >
-                Chỉ số kiểm nghiệm <span className="text-rose-600">*</span>
-              </label>
-              <input
-                id="inspector-metrics"
-                type="text"
-                disabled={submitting}
-                value={metrics}
-                aria-invalid={Boolean(fieldErrors.metrics)}
-                onChange={(e) => {
-                  setMetrics(e.target.value);
-                  clearFieldError('metrics');
-                }}
-                className={inputClassName(Boolean(fieldErrors.metrics))}
-              />
-              {fieldErrors.metrics && (
-                <p className="mt-1 text-xs text-rose-600">{fieldErrors.metrics}</p>
-              )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+              <div className="sm:col-span-4">
+                <label
+                  htmlFor="inspector-brix"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
+                >
+                  Độ Brix (%) <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="inspector-brix"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  disabled={submitting}
+                  value={brix}
+                  aria-invalid={Boolean(fieldErrors.brix)}
+                  onChange={(e) => {
+                    setBrix(e.target.value);
+                    clearFieldError('brix');
+                  }}
+                  className={inputClassName(Boolean(fieldErrors.brix))}
+                />
+                {fieldErrors.brix && (
+                  <p className="mt-1 text-xs text-rose-600">{fieldErrors.brix}</p>
+                )}
+              </div>
+
+              <div className="sm:col-span-8">
+                <label
+                  htmlFor="inspector-residue"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
+                >
+                  Test kit dư lượng BVTV <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  id="inspector-residue"
+                  disabled={submitting}
+                  value={residueTest}
+                  aria-invalid={Boolean(fieldErrors.residueTest)}
+                  onChange={(e) => {
+                    setResidueTest(e.target.value);
+                    clearFieldError('residueTest');
+                  }}
+                  className={inputClassName(Boolean(fieldErrors.residueTest))}
+                >
+                  {RESIDUE_TEST_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                {fieldErrors.residueTest && (
+                  <p className="mt-1 text-xs text-rose-600">{fieldErrors.residueTest}</p>
+                )}
+              </div>
             </div>
 
             <div>
@@ -392,16 +467,34 @@ export default function InspectorWorkspace({ user }) {
                 htmlFor="inspector-notes"
                 className="block text-xs font-semibold text-slate-700"
               >
-                Ghi chú
+                {result === 'FAILED' ? (
+                  <>
+                    Lý do không đạt chuẩn <span className="text-rose-600">*</span>
+                  </>
+                ) : (
+                  'Ghi chú kiểm định'
+                )}
               </label>
               <textarea
                 id="inspector-notes"
                 rows={3}
                 disabled={submitting}
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className={inputClassName(false)}
+                placeholder={
+                  result === 'FAILED'
+                    ? 'Nhập rõ lý do không đạt (ví dụ: Dư lượng vượt ngưỡng, độ Brix thấp)...'
+                    : 'Nhập ghi chú kiểm định...'
+                }
+                aria-invalid={Boolean(fieldErrors.notes)}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  clearFieldError('notes');
+                }}
+                className={inputClassName(Boolean(fieldErrors.notes))}
               />
+              {fieldErrors.notes && (
+                <p className="mt-1 text-xs text-rose-600">{fieldErrors.notes}</p>
+              )}
             </div>
 
             {message && (
