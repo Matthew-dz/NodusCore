@@ -296,11 +296,11 @@ export default function FarmerWorkspace({ user, onNavigate }) {
               )}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+              <div className="sm:col-span-5">
                 <label
                   htmlFor="farmer-harvest-date"
-                  className="block text-xs font-semibold text-slate-700"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
                 >
                   Ngày thu hoạch <span className="text-rose-600">*</span>
                 </label>
@@ -326,76 +326,71 @@ export default function FarmerWorkspace({ user, onNavigate }) {
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <label
-                    htmlFor="farmer-quantity"
-                    className="block text-xs font-semibold text-slate-700"
-                  >
-                    Sản lượng <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    id="farmer-quantity"
-                    type="number"
-                    min="0.001"
-                    step="any"
-                    disabled={submitting}
-                    value={quantity}
-                    placeholder="500"
-                    aria-invalid={Boolean(fieldErrors.quantity)}
-                    aria-describedby={
-                      fieldErrors.quantity ? 'farmer-quantity-error' : undefined
-                    }
-                    onChange={(e) => {
-                      setQuantity(e.target.value);
-                      clearFieldError('quantity');
-                    }}
-                    className={inputClassName(Boolean(fieldErrors.quantity))}
-                  />
-                  {fieldErrors.quantity && (
-                    <p id="farmer-quantity-error" className="mt-1 text-xs text-rose-600">
-                      {fieldErrors.quantity}
-                    </p>
-                  )}
-                </div>
+              <div className="sm:col-span-4">
+                <label
+                  htmlFor="farmer-quantity"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
+                >
+                  Sản lượng <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="farmer-quantity"
+                  type="number"
+                  min="0.001"
+                  step="any"
+                  disabled={submitting}
+                  value={quantity}
+                  placeholder="500"
+                  aria-invalid={Boolean(fieldErrors.quantity)}
+                  aria-describedby={
+                    fieldErrors.quantity ? 'farmer-quantity-error' : undefined
+                  }
+                  onChange={(e) => {
+                    setQuantity(e.target.value);
+                    clearFieldError('quantity');
+                  }}
+                  className={inputClassName(Boolean(fieldErrors.quantity))}
+                />
+                {fieldErrors.quantity && (
+                  <p id="farmer-quantity-error" className="mt-1 text-xs text-rose-600">
+                    {fieldErrors.quantity}
+                  </p>
+                )}
+              </div>
 
-                <div>
-                  <label
-                    htmlFor="farmer-unit"
-                    className="block text-xs font-semibold text-slate-700"
-                  >
-                    Đơn vị tính <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    id="farmer-unit"
-                    type="text"
-                    list="farmer-unit-options"
-                    maxLength={32}
-                    disabled={submitting}
-                    value={unit}
-                    placeholder="kg"
-                    aria-invalid={Boolean(fieldErrors.unit)}
-                    aria-describedby={fieldErrors.unit ? 'farmer-unit-error' : undefined}
-                    onChange={(e) => {
-                      setUnit(e.target.value);
-                      clearFieldError('unit');
-                    }}
-                    className={inputClassName(Boolean(fieldErrors.unit)).replace(
-                      'px-3',
-                      'px-2'
-                    )}
-                  />
-                  <datalist id="farmer-unit-options">
-                    {UNIT_SUGGESTIONS.map((item) => (
-                      <option key={item} value={item} />
-                    ))}
-                  </datalist>
-                  {fieldErrors.unit && (
-                    <p id="farmer-unit-error" className="mt-1 text-xs text-rose-600">
-                      {fieldErrors.unit}
-                    </p>
-                  )}
-                </div>
+              <div className="sm:col-span-3">
+                <label
+                  htmlFor="farmer-unit"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
+                >
+                  Đơn vị tính <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="farmer-unit"
+                  type="text"
+                  list="farmer-unit-options"
+                  maxLength={32}
+                  disabled={submitting}
+                  value={unit}
+                  placeholder="kg"
+                  aria-invalid={Boolean(fieldErrors.unit)}
+                  aria-describedby={fieldErrors.unit ? 'farmer-unit-error' : undefined}
+                  onChange={(e) => {
+                    setUnit(e.target.value);
+                    clearFieldError('unit');
+                  }}
+                  className={inputClassName(Boolean(fieldErrors.unit))}
+                />
+                <datalist id="farmer-unit-options">
+                  {UNIT_SUGGESTIONS.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
+                {fieldErrors.unit && (
+                  <p id="farmer-unit-error" className="mt-1 text-xs text-rose-600">
+                    {fieldErrors.unit}
+                  </p>
+                )}
               </div>
             </div>
 
