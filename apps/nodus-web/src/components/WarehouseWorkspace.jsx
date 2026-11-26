@@ -1,180 +1,322 @@
 // Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
-import { useEffect, useState } from 'react';
-import { AlertOctagon, CheckCircle2, PackageCheck, X } from 'lucide-react';
-import { computeSha256Hex, DEFAULT_TENANT_UUID, graphqlRequest } from '../lib/graphql';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  AlertOctagon,
+  CheckCircle2,
+  Loader2,
+  PackageCheck,
+  RefreshCw,
+  ShieldAlert,
+  X,
+} from 'lucide-react';
+import {
+  fetchQualityWarehouseBatches,
+  isPokaYokeViolationError,
+  submitWarehouseIntake,
+} from '../services/qualityWarehouseService';
 
-const WAREHOUSE_BATCHES_QUERY = `
-  query WarehouseBatches {
-    batches(order_by: { created_at: desc }, limit: 30) {
-      id
-      batch_code
-      product_name
-      quantity
-      unit
-      status
-      inspections(order_by: { inspected_at: desc }, limit: 1) {
-        result
-        inspection_code
-      }
-    }
-  }
-`;
+const BATCH_STATUS_BADGE = {
+  CREATED: 'border-slate-200 bg-slate-100 text-slate-700',
+  HARVESTED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  INSPECTING: 'border-amber-200 bg-amber-50 text-amber-800',
+  IN_STORAGE: 'border-sky-200 bg-sky-50 text-sky-800',
+  DISTRIBUTING: 'border-purple-200 bg-purple-50 text-purple-800',
+  SOLD: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+  REJECTED: 'border-rose-200 bg-rose-50 text-rose-700',
+};
 
-const MOVE_TO_STORAGE_MUTATION = `
-  mutation MoveBatchToStorage($id: uuid!) {
-    update_batches_by_pk(pk_columns: { id: $id }, _set: { status: "IN_STORAGE" }) {
-      id
-      batch_code
-      status
-    }
+function buildPokaYokeAlert(batch, rawMessage) {
+  const inspectionResult = batch?.inspections?.[0]?.result;
+  if (inspectionResult === 'FAILED') {
+    return {
+      batchCode: batch.batch_code,
+      productName: batch.product_name,
+      inspectionLabel: 'FAILED (Không đạt)',
+      title: 'Poka-yoke chặn nhập kho: Lô hàng có kết quả kiểm định KHÔNG ĐẠT (FAILED)!',
+      description:
+        'Lô nông sản này đã bị đánh dấu FAILED nên không đủ điều kiện an toàn để chuyển vào kho lưu trữ (IN_STORAGE).',
+      detail: rawMessage,
+    };
   }
-`;
 
-const LOG_STORAGE_EVENT = `
-  mutation LogStorageEvent(
-    $tenant_id: uuid!
-    $batch_id: uuid!
-    $payload: jsonb!
-    $sha256_hash: bpchar!
-  ) {
-    insert_batch_events_one(
-      object: {
-        tenant_id: $tenant_id
-        batch_id: $batch_id
-        stage: "STORAGE"
-        event_type: "STORED_IN_WAREHOUSE"
-        location: "Kho lạnh Trung tâm HTX Đà Nẵng"
-        payload: $payload
-      }
-    ) {
-      id
-    }
-    insert_batch_audit_trail_one(
-      object: {
-        tenant_id: $tenant_id
-        batch_id: $batch_id
-        action: "WAREHOUSE_INTAKE"
-        data_snapshot: $payload
-        sha256_hash: $sha256_hash
-      }
-    ) {
-      id
-    }
-  }
-`;
+  return {
+    batchCode: batch.batch_code,
+    productName: batch.product_name,
+    inspectionLabel: 'CHƯA KIỂM ĐỊNH',
+    title: 'Poka-yoke chặn nhập kho: Lô hàng chưa được kiểm định đạt chuẩn (PASSED)!',
+    description:
+      'Cơ chế kiểm soát lỗi Poka-yoke tại PostgreSQL đã từ chối thao tác nhập kho vì lô hàng chưa có phiếu kiểm định đạt chuẩn.',
+    detail: rawMessage,
+  };
+}
 
 export default function WarehouseWorkspace({ user }) {
   const [batches, setBatches] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
   const [loadingId, setLoadingId] = useState(null);
-  const [pokaYokeError, setPokaYokeError] = useState(null);
+  const [pokaYokeModal, setPokaYokeModal] = useState(null);
+  const [apiError, setApiError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [auditWarning, setAuditWarning] = useState('');
+  const inFlightRef = useRef(false);
 
-  const loadBatches = async () => {
+  const loadBatches = useCallback(async () => {
+    setLoadingList(true);
+    setLoadError('');
     try {
-      const data = await graphqlRequest({
-        query: WAREHOUSE_BATCHES_QUERY,
+      const list = await fetchQualityWarehouseBatches({
         token: user.token,
         role: user.role,
       });
-      setBatches(data.batches || []);
+      setBatches(list);
     } catch (err) {
-      setPokaYokeError({ title: 'Lỗi tải dữ liệu', detail: err.message });
+      setLoadError(`Không tải được danh sách lô hàng: ${err.message}`);
+    } finally {
+      setLoadingList(false);
     }
-  };
+  }, [user.token, user.role]);
 
   useEffect(() => {
     loadBatches();
-  }, [user.token]);
+  }, [loadBatches]);
+
+  useEffect(() => {
+    if (!pokaYokeModal) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setPokaYokeModal(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [pokaYokeModal]);
 
   const handleIntake = async (batch) => {
+    if (inFlightRef.current) return;
+
+    inFlightRef.current = true;
     setLoadingId(batch.id);
-    setPokaYokeError(null);
+    setPokaYokeModal(null);
+    setApiError('');
     setSuccessMsg('');
+    setAuditWarning('');
+
     try {
-      await graphqlRequest({
-        query: MOVE_TO_STORAGE_MUTATION,
-        variables: { id: batch.id },
+      const { updatedBatch, auditWarning: warning } = await submitWarehouseIntake({
         token: user.token,
         role: user.role,
+        batch,
+        actorUsername: user.username,
       });
 
-      const payload = {
-        batch_code: batch.batch_code,
-        warehouse_keeper: user.username,
-        status: 'IN_STORAGE',
-      };
-      const sha256 = await computeSha256Hex(payload);
-
-      await graphqlRequest({
-        query: LOG_STORAGE_EVENT,
-        variables: {
-          tenant_id: DEFAULT_TENANT_UUID,
-          batch_id: batch.id,
-          payload,
-          sha256_hash: sha256,
-        },
-        token: user.token,
-        role: user.role,
-      });
-
-      setSuccessMsg(`Đã nhập kho thành công lô ${batch.batch_code} (${batch.product_name}).`);
+      setBatches((prev) =>
+        prev.map((item) =>
+          item.id === batch.id ? { ...item, status: updatedBatch.status } : item
+        )
+      );
+      setSuccessMsg(
+        `Đã nhập kho thành công lô ${updatedBatch.batch_code} (${batch.product_name}) — trạng thái: ${updatedBatch.status}.`
+      );
+      if (warning) {
+        setAuditWarning(warning);
+      }
       await loadBatches();
     } catch (err) {
-      const raw = err.message || '';
-      const isPokaYoke =
-        raw.includes('Poka-yoke') || raw.includes('IN_STORAGE') || raw.includes('PASSED');
-      setPokaYokeError({
-        title: isPokaYoke
-          ? 'Poka-yoke chặn: Lô hàng chưa có phiếu kiểm định ĐẠT chuẩn, không thể nhập kho!'
-          : `Không thể nhập kho: ${raw}`,
-        detail: raw,
-      });
+      const raw = err.message || 'Lỗi không xác định khi nhập kho.';
+      if (isPokaYokeViolationError(raw)) {
+        setPokaYokeModal(buildPokaYokeAlert(batch, raw));
+      } else {
+        setApiError(`Không thể nhập kho lô ${batch.batch_code}: ${raw}`);
+      }
     } finally {
+      inFlightRef.current = false;
       setLoadingId(null);
     }
   };
 
   return (
     <div className="space-y-6">
-      {pokaYokeError && (
+      {pokaYokeModal && (
         <div
-          role="alert"
-          className="flex items-start justify-between gap-4 rounded-xl border-2 border-rose-500 bg-rose-50 p-5 text-rose-900 shadow-md"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="poka-yoke-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[1px]"
+          onClick={() => setPokaYokeModal(null)}
         >
-          <div className="flex items-start gap-3">
-            <AlertOctagon className="mt-0.5 h-6 w-6 shrink-0 text-rose-600" />
-            <div>
-              <h3 className="text-base font-bold text-rose-800">{pokaYokeError.title}</h3>
-              <p className="mt-1 font-mono text-xs text-rose-700">
-                PostgreSQL Trigger Response: {pokaYokeError.detail}
-              </p>
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-2xl border-2 border-rose-500 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-rose-200 bg-rose-600 px-6 py-4 text-white">
+              <div className="flex items-center gap-2.5">
+                <AlertOctagon className="h-6 w-6 shrink-0" />
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-rose-100">
+                    Cơ chế kiểm soát lỗi Poka-yoke
+                  </div>
+                  <h3 id="poka-yoke-modal-title" className="text-base font-bold">
+                    Từ chối nhập kho lô hàng chưa hợp lệ
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPokaYokeModal(null)}
+                aria-label="Đóng cảnh báo Poka-yoke"
+                className="rounded-lg p-1 text-rose-100 transition hover:bg-rose-700 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                <p className="text-sm font-bold text-rose-900">{pokaYokeModal.title}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-rose-800">
+                  {pokaYokeModal.description}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs sm:grid-cols-2">
+                <div>
+                  <span className="text-slate-500">Lô hàng: </span>
+                  <strong className="font-mono text-slate-900">{pokaYokeModal.batchCode}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500">Nông sản: </span>
+                  <strong className="text-slate-900">{pokaYokeModal.productName}</strong>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-slate-500">Tình trạng kiểm định: </span>
+                  <span className="inline-block rounded-full bg-rose-100 px-2 py-0.5 font-bold text-rose-800">
+                    {pokaYokeModal.inspectionLabel}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                  <ShieldAlert className="h-3.5 w-3.5 text-rose-600" />
+                  Phản hồi từ Backend / PostgreSQL Trigger:
+                </div>
+                <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-3 font-mono text-xs text-rose-800 break-words">
+                  {pokaYokeModal.detail}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => setPokaYokeModal(null)}
+                  className="rounded-lg bg-rose-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500/40"
+                >
+                  Đóng cảnh báo
+                </button>
+              </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setPokaYokeError(null)}
-            className="rounded-lg p-1 text-rose-600 hover:bg-rose-100"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-          <span>{successMsg}</span>
+        <div
+          role="status"
+          className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+            <span>{successMsg}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessMsg('')}
+            aria-label="Đóng thông báo thành công"
+            className="rounded p-1 text-emerald-700 hover:bg-emerald-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-2">
-          <PackageCheck className="h-5 w-5 text-sky-600" />
-          <h2 className="text-lg font-bold text-slate-900">Bàn làm việc Thủ kho — Kiểm soát Nhập kho (Poka-yoke)</h2>
+      {auditWarning && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          {auditWarning}
         </div>
-        <p className="mt-1 text-xs text-slate-500">
-          CSDL PostgreSQL sẽ tự động chặn chuyển trạng thái sang <code className="font-mono">IN_STORAGE</code> nếu lô chưa có phiếu kiểm định <code className="font-mono">PASSED</code>.
-        </p>
+      )}
+
+      {apiError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+            <span>{apiError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setApiError('')}
+            aria-label="Đóng thông báo lỗi"
+            className="rounded p-1 text-rose-600 hover:bg-rose-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <section
+        aria-labelledby="warehouse-heading"
+        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-sky-600" />
+              <h2 id="warehouse-heading" className="text-lg font-bold text-slate-900">
+                Bàn làm việc Thủ kho — Kiểm soát Nhập kho (Poka-yoke)
+              </h2>
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                {batches.length} lô
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              CSDL PostgreSQL sẽ tự động chặn chuyển trạng thái sang{' '}
+              <code className="font-mono">IN_STORAGE</code> nếu lô chưa có phiếu kiểm định{' '}
+              <code className="font-mono">PASSED</code>.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={loadingList}
+            onClick={loadBatches}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loadingList ? 'animate-spin' : ''}`} />
+            {loadingList ? 'Đang tải...' : 'Làm mới'}
+          </button>
+        </div>
+
+        {loadError && (
+          <div
+            role="alert"
+            className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+              <span>{loadError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={loadBatches}
+              className="shrink-0 rounded border border-rose-200 bg-white px-2.5 py-1 font-semibold text-rose-700 hover:bg-rose-100"
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
 
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -189,59 +331,95 @@ export default function WarehouseWorkspace({ user }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {batches.map((b) => {
-                const insp = b.inspections?.[0];
-                const alreadyStored = b.status === 'IN_STORAGE' || b.status === 'DISTRIBUTING' || b.status === 'SOLD';
-                return (
-                  <tr key={b.id} className="hover:bg-slate-50">
-                    <td className="py-3 pr-3 font-mono text-xs font-semibold">{b.batch_code}</td>
-                    <td className="py-3 pr-3 font-medium">{b.product_name}</td>
-                    <td className="py-3 pr-3 text-slate-600">
-                      {b.quantity} {b.unit}
-                    </td>
-                    <td className="py-3 pr-3">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-                        {b.status}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-3">
-                      {insp ? (
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                            insp.result === 'PASSED'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-rose-100 text-rose-800'
-                          }`}
-                        >
-                          {insp.result}
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                          CHƯA KIỂM ĐỊNH
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3">
-                      {alreadyStored ? (
-                        <span className="text-xs font-semibold text-emerald-700">Đã nhập kho</span>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={loadingId === b.id}
-                          onClick={() => handleIntake(b)}
-                          className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50"
-                        >
-                          {loadingId === b.id ? 'Đang xử lý...' : 'Nhập kho'}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {loadingList && batches.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-sm text-slate-400">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Đang tải danh sách lô hàng...
+                    </span>
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {batches.map((b) => {
+                    const insp = b.inspections?.[0];
+                    const alreadyStored =
+                      b.status === 'IN_STORAGE' ||
+                      b.status === 'DISTRIBUTING' ||
+                      b.status === 'SOLD';
+                    const isProcessing = loadingId === b.id;
+
+                    return (
+                      <tr key={b.id} className="hover:bg-slate-50">
+                        <td className="py-3 pr-3 font-mono text-xs font-semibold text-slate-800">
+                          {b.batch_code}
+                        </td>
+                        <td className="py-3 pr-3 font-medium text-slate-900">{b.product_name}</td>
+                        <td className="py-3 pr-3 text-slate-600">
+                          {b.quantity} {b.unit}
+                        </td>
+                        <td className="py-3 pr-3">
+                          <span
+                            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                              BATCH_STATUS_BADGE[b.status] ||
+                              'border-slate-200 bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {b.status}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-3">
+                          {insp ? (
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                insp.result === 'PASSED'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              {insp.result}
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                              CHƯA KIỂM ĐỊNH
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3">
+                          {alreadyStored ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Đã nhập kho
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={Boolean(loadingId)}
+                              onClick={() => handleIntake(b)}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                              {isProcessing ? 'Đang xử lý...' : 'Nhập kho'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {batches.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-sm text-slate-400">
+                        Chưa có lô hàng nào trong hệ thống.
+                      </td>
+                    </tr>
+                  )}
+                </>
+              )}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -43,7 +43,11 @@ export async function graphqlRequest({ query, variables = {}, token, role, isPub
     throw new Error(json?.error || json?.message || `HTTP ${res.status}`);
   }
   if (json.errors && json.errors.length > 0) {
-    throw new Error(json.errors.map((e) => e.message).join(' | '));
+    throw new Error(
+      json.errors
+        .map((e) => e.extensions?.internal?.error?.message || e.message)
+        .join(' | ')
+    );
   }
   return json.data;
 }
