@@ -1,5 +1,5 @@
 /* Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0. */
-/* NodusCore DX-OS — AgriTech Clean Light Login Theme (Keycloak 25 / PatternFly v5) */
+/* NodusCore DX-OS — Compact SaaS Clean Light Login Theme (Keycloak 25 / PatternFly v5) */
 
 :root {
   --nodus-primary: #10b981;
@@ -19,91 +19,106 @@
   box-sizing: border-box;
 }
 
-/* 1. Viewport Centering & Clean Light Radial Background */
+/* 1. Viewport Centering (Override PatternFly html/body height: 100%) */
 html,
 body,
 body#keycloak-bg {
-  min-height: 100vh;
-  width: 100%;
-  margin: 0;
-  padding: 0;
+  height: auto !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 24px 16px !important;
   background-color: var(--nodus-bg-body) !important;
-  background-image: radial-gradient(at 0% 0%, var(--nodus-primary-tint) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, #f1f5f9 0px, transparent 50%) !important;
+  background-image: radial-gradient(at 0% 0%, var(--nodus-primary-tint) 0px, transparent 40%),
+    radial-gradient(at 100% 100%, #f1f5f9 0px, transparent 40%) !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif !important;
   color: var(--nodus-text-heading);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-body#keycloak-bg {
-  padding: 24px 16px;
-}
-
-/* 2. Header & Branding */
+/* 2. Brand Logo + Title + Subtitle (Compact, directly above card) */
 #kc-header,
 .login-pf-page-header {
   width: 100%;
-  max-width: 440px;
-  margin: 0 auto 20px auto;
+  max-width: 400px;
+  margin: 0 auto 18px auto !important;
+  padding: 0 !important;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#kc-header::before {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background-color: var(--nodus-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 20h10'/%3E%3Cpath d='M10 20c5.5-2.5.8-6.4 3-10'/%3E%3Cpath d='M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z'/%3E%3Cpath d='M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 24px 24px;
+  box-shadow: 0 6px 14px -3px rgba(16, 185, 129, 0.35);
 }
 
 #kc-header-wrapper {
   font-size: 0 !important;
-  padding: 0;
+  padding: 0 !important;
+  margin: 0 !important;
   text-align: center;
 }
 
 #kc-header-wrapper::before {
-  content: "NODUSCORE DX-OS";
+  content: "NodusCore DX-OS";
   display: block;
-  font-size: 1.625rem;
+  font-size: 1.375rem;
   font-weight: 800;
   letter-spacing: -0.025em;
   color: var(--nodus-text-heading);
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 #kc-header-wrapper::after {
   content: "Nền tảng Truy xuất Nguồn gốc Nông sản Nguồn Mở";
   display: block;
-  margin-top: 6px;
-  font-size: 0.875rem;
+  margin-top: 4px;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--nodus-text-muted);
 }
 
-/* 3. Login Container & Single Unified White Card */
+/* 3. Override PatternFly v5 Login Full-Height Grid */
 .pf-v5-c-login,
 .pf-v5-c-login__container {
-  width: 100%;
-  max-width: 440px;
-  margin: 0 auto;
-  padding: 0;
+  display: block !important;
+  min-height: auto !important;
+  height: auto !important;
+  width: 100% !important;
+  max-width: 400px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  grid-template-columns: none !important;
 }
 
+/* 4. Compact SaaS Card */
 .pf-v5-c-login__main,
 .card-pf {
-  width: 100%;
+  width: 100% !important;
   background-color: var(--nodus-surface) !important;
   border: 1px solid var(--nodus-border) !important;
   border-radius: 16px !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
-    0 8px 10px -6px rgba(0, 0, 0, 0.02) !important;
-  padding: 24px 20px !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06),
+    0 4px 10px -4px rgba(15, 23, 42, 0.03) !important;
+  padding: 28px !important;
+  margin: 0 !important;
 }
 
-@media (min-width: 640px) {
-  .pf-v5-c-login__main,
-  .card-pf {
-    padding: 32px !important;
-  }
-}
-
-/* Keep inner wrappers completely transparent (no nested card) */
 .pf-v5-c-login__main-header,
 .pf-v5-c-login__main-body,
 .pf-v5-c-login__main-footer,
@@ -117,34 +132,51 @@ body#keycloak-bg {
 }
 
 .pf-v5-c-login__main-header {
-  margin-bottom: 24px !important;
+  margin-bottom: 20px !important;
 }
 
 h1.pf-v5-c-title,
 #kc-page-title {
   margin: 0 !important;
-  font-size: 1.375rem !important;
+  font-size: 1.125rem !important;
   font-weight: 700 !important;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   color: var(--nodus-text-heading) !important;
   line-height: 1.3;
 }
 
-/* 4. Form Groups, Labels & Single-Border Inputs */
+/* 5. Tight Balanced Form Spacing (Eliminate dead whitespace) */
+#kc-form-login,
+.pf-v5-c-form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+
 .pf-v5-c-form__group {
-  margin-bottom: 18px;
+  margin: 0 !important;
+}
+
+.login-pf-settings:empty,
+#kc-form-options:empty {
+  display: none !important;
+}
+
+.login-pf-settings {
+  margin: 0 !important;
+  min-height: 0 !important;
 }
 
 .pf-v5-c-form__label,
 #kc-form-login label {
   display: block;
-  margin-bottom: 6px;
-  font-size: 0.875rem;
+  margin-bottom: 5px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--nodus-text-muted);
 }
 
-/* Reset PatternFly span wrapper so it never draws a second border */
+/* Reset PatternFly span wrapper */
 span.pf-v5-c-form-control {
   display: block;
   width: 100%;
@@ -155,14 +187,14 @@ span.pf-v5-c-form-control {
   box-shadow: none !important;
 }
 
-/* Standalone text input (Username) */
+/* Username input */
 #kc-form-login input[type="text"],
 #kc-form-login input[type="email"] {
   display: block;
   width: 100%;
-  height: 44px;
+  height: 40px;
   padding: 0 12px;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   color: var(--nodus-text-heading);
   background-color: var(--nodus-surface);
   border: 1px solid var(--nodus-input-border);
@@ -177,12 +209,12 @@ span.pf-v5-c-form-control {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
-/* Password Input Group (Input + Show Password Eye Button) */
+/* Password Input Group */
 .pf-v5-c-input-group {
   display: flex;
   align-items: stretch;
   width: 100%;
-  height: 44px;
+  height: 40px;
   background-color: var(--nodus-surface);
   border: 1px solid var(--nodus-input-border);
   border-radius: 8px;
@@ -206,7 +238,7 @@ span.pf-v5-c-form-control {
   width: 100%;
   height: 100%;
   padding: 0 12px;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   color: var(--nodus-text-heading);
   background: transparent !important;
   border: none !important;
@@ -219,7 +251,7 @@ span.pf-v5-c-form-control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
+  width: 40px;
   background-color: #f8fafc;
   border: none;
   border-left: 1px solid var(--nodus-border);
@@ -233,24 +265,24 @@ span.pf-v5-c-form-control {
   color: var(--nodus-text-heading);
 }
 
-/* 5. Submit / Sign In Button */
+/* 6. Submit / Sign In Button */
 #kc-form-buttons {
-  margin-top: 24px;
-  margin-bottom: 0;
+  margin-top: 6px !important;
+  margin-bottom: 0 !important;
 }
 
 #kc-login,
 input[type="submit"].pf-m-primary {
   display: block;
   width: 100%;
-  height: 44px;
+  height: 42px;
   padding: 0 16px;
   background-color: var(--nodus-primary) !important;
   background-image: none !important;
   border: none !important;
   border-radius: 8px !important;
   color: #ffffff !important;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(16, 185, 129, 0.22);
@@ -264,15 +296,15 @@ input[type="submit"].pf-m-primary:active {
   background-color: var(--nodus-primary-hover) !important;
 }
 
-/* 6. Alerts / Validation Feedback */
+/* 7. Alerts / Validation Feedback */
 .pf-v5-c-alert,
 .alert-error,
 .alert-info,
 #input-error {
   border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 0.875rem;
-  margin-bottom: 16px;
+  padding: 10px 12px;
+  font-size: 0.8125rem;
+  margin-bottom: 12px;
 }
 
 .pf-v5-c-alert.pf-m-danger,
@@ -294,15 +326,19 @@ input[type="submit"].pf-m-primary:active {
 
 .pf-v5-c-helper-text__item-text {
   color: #dc2626;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 }
 
-/* Links & Footer */
+/* Footer */
 .pf-v5-c-login__main-footer {
-  margin-top: 20px !important;
+  margin-top: 16px !important;
   text-align: center;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: var(--nodus-text-muted);
+}
+
+.pf-v5-c-login__main-footer:empty {
+  display: none !important;
 }
 
 a {
