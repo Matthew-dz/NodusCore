@@ -107,8 +107,7 @@ body#keycloak-bg {
 }
 
 /* 4. Compact SaaS Card */
-.pf-v5-c-login__main,
-.card-pf {
+.pf-v5-c-login__main {
   width: 100% !important;
   background-color: var(--nodus-surface) !important;
   border: 1px solid var(--nodus-border) !important;
