@@ -1,0 +1,57 @@
+# Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
+name: NodusCore CI - Build & Test
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  # 1. Thẩm định cấu hình hạ tầng Docker Core
+  verify-core-infrastructure:
+    name: Validate Docker Compose & Core Config
+    runs-on: ubuntu-latest
+    paths:
+      - 'core/**'
+      - 'docker-compose.yml'
+      - '.env.example'
+      - '.github/workflows/ci.yml'
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Verify Environment Template
+        run: |
+          test -f .env.example || exit 1
+          cp .env.example .env
+
+      - name: Validate Docker Compose Configuration
+        run: docker compose config > /dev/null
+
+  # 2. Kiểm thử và biên dịch ứng dụng Frontend Web
+  build-frontend-web:
+    name: Build & Lint nodus-web (SPA)
+    runs-on: ubuntu-latest
+    paths:
+      - 'apps/nodus-web/**'
+      - '.github/workflows/ci.yml'
+    defaults:
+      run:
+        working-directory: apps/nodus-web
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/nodus-web/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Web Application
+        run: npm run build
