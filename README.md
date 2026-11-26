@@ -1,4 +1,6 @@
 # NodusCore DX-OS
+[![CI Pipeline](https://github.com/Matthew-dz/NodusCore/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/Matthew-dz/NodusCore/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 **NodusCore DX-OS** là nền tảng lõi kiến trúc mở (**Headless Open-Core Platform**) được thiết kế cho bài toán **Chuỗi cung ứng nông sản & Truy xuất nguồn gốc theo lô** (OLP Phần mềm Nguồn mở 2026).
 
