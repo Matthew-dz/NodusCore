@@ -31,6 +31,7 @@ services:
       KC_HTTP_PORT: 8080
     volumes:
       - ./core/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./core/keycloak/themes/nodus:/opt/keycloak/themes/nodus
     ports:
       - "8081:8080"
     networks:
@@ -47,7 +48,7 @@ services:
       HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
       HASURA_GRAPHQL_DEV_MODE: "true"
-      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-nodus_admin_secret_2026}
       HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public_trace
       HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url":"http://keycloak:8080/realms/nodus-core/protocol/openid-connect/certs","claims_map":{"x-hasura-allowed-roles":{"path":"$$.realm_access.roles"},"x-hasura-default-role":"public_trace","x-hasura-user-id":{"path":"$$.sub"},"x-hasura-tenant-id":{"path":"$$.tenant_id"}}}'
     ports:
