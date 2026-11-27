@@ -1,0 +1,13 @@
+{
+  "name": "plugin-qr-generator",
+  "version": "1.0.0",
+  "description": "NodusCore Open-Core Sample Plugin - Dynamic QR Generator",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "qrcode": "^1.5.3"
+  }
+}

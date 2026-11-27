@@ -131,6 +131,19 @@ services:
     networks:
       - nodus-net
 
+  plugin-qr-generator:
+    build:
+      context: ./plugins/plugin-qr-generator
+      dockerfile: Dockerfile
+    container_name: nodus-plugin-qr
+    environment:
+      - PORT=4001
+    ports:
+      - "4001:4001"
+    networks:
+      - nodus-net
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:

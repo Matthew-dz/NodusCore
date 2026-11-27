@@ -129,4 +129,15 @@ routes:
       nodes:
         "n8n:5678": 1
 
+  # 7. Open-Core Sample Plugin: Dynamic QR Generator
+  - id: plugin_qr_route
+    uri: /api/plugins/qr/*
+    upstream:
+      nodes:
+        "plugin-qr-generator:4001": 1
+      type: roundrobin
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/api/plugins/qr/(.*)", "/$1"]
+
 #END
