@@ -24,6 +24,11 @@ routes:
         regex_uri:
           - "^/api/trace/?(.*)"
           - "/v1/graphql"
+        headers:
+          set:
+            x-hasura-role: "public_trace"
+          remove:
+            - "x-hasura-admin-secret"
       cors:
         allow_origins: "*"
         allow_methods: "GET,POST,OPTIONS"

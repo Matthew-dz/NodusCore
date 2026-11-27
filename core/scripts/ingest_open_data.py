@@ -21,6 +21,69 @@ DEFAULT_TRACE_KEY = "TR-DANANG-2026-001"
 BATCH_ID = "c0000000-0000-0000-0000-000000000001"
 BATCH_PRODUCT = "Rau an toàn chuyên canh Đà Nẵng"
 
+WARD_POLYGONS = {
+    "hòa tiến": [[
+        [108.1620, 15.9600], [108.1650, 15.9600],
+        [108.1650, 15.9630], [108.1620, 15.9630], [108.1620, 15.9600],
+    ]],
+    "hòa khương": [[
+        [108.1200, 15.9300], [108.1230, 15.9300],
+        [108.1230, 15.9330], [108.1200, 15.9330], [108.1200, 15.9300],
+    ]],
+    "hòa phong": [[
+        [108.1400, 15.9800], [108.1430, 15.9800],
+        [108.1430, 15.9830], [108.1400, 15.9830], [108.1400, 15.9800],
+    ]],
+    "hòa nhơn": [[
+        [108.1300, 16.0100], [108.1330, 16.0100],
+        [108.1330, 16.0130], [108.1300, 16.0130], [108.1300, 16.0100],
+    ]],
+    "hòa châu": [[
+        [108.1800, 15.9800], [108.1830, 15.9800],
+        [108.1830, 15.9830], [108.1800, 15.9830], [108.1800, 15.9800],
+    ]],
+    "hòa phước": [[
+        [108.1950, 15.9500], [108.1980, 15.9500],
+        [108.1980, 15.9530], [108.1950, 15.9530], [108.1950, 15.9500],
+    ]],
+    "hòa liên": [[
+        [108.1100, 16.0900], [108.1130, 16.0900],
+        [108.1130, 16.0930], [108.1100, 16.0930], [108.1100, 16.0900],
+    ]],
+    "hòa sơn": [[
+        [108.1350, 16.0500], [108.1380, 16.0500],
+        [108.1380, 16.0530], [108.1350, 16.0530], [108.1350, 16.0500],
+    ]],
+    "khuê mỹ": [[
+        [108.2450, 16.0200], [108.2480, 16.0200],
+        [108.2480, 16.0230], [108.2450, 16.0230], [108.2450, 16.0200],
+    ]],
+    "hòa quý": [[
+        [108.2350, 15.9850], [108.2380, 15.9850],
+        [108.2380, 15.9880], [108.2350, 15.9880], [108.2350, 15.9850],
+    ]],
+    "hòa thọ tây": [[
+        [108.1850, 16.0050], [108.1880, 16.0050],
+        [108.1880, 16.0080], [108.1850, 16.0080], [108.1850, 16.0050],
+    ]],
+    "hòa hiệp bắc": [[
+        [108.1200, 16.1200], [108.1230, 16.1200],
+        [108.1230, 16.1230], [108.1200, 16.1230], [108.1200, 16.1200],
+    ]],
+    "hòa ninh": [[
+        [108.0550, 16.0200], [108.0580, 16.0200],
+        [108.0580, 16.0230], [108.0550, 16.0230], [108.0550, 16.0200],
+    ]],
+    "hòa phú": [[
+        [108.0700, 15.9700], [108.0730, 15.9700],
+        [108.0730, 15.9730], [108.0700, 15.9730], [108.0700, 15.9700],
+    ]],
+    "hòa bắc": [[
+        [108.0300, 16.1300], [108.0330, 16.1300],
+        [108.0330, 16.1330], [108.0300, 16.1330], [108.0300, 16.1300],
+    ]],
+}
+
 DISTRICT_POLYGONS = {
     "hòa vang": [[
         [108.1450, 15.9950], [108.1480, 15.9950],
@@ -113,29 +176,163 @@ def parse_vn_float(value: str):
         return None
 
 
-def get_district_geojson(district: str) -> dict:
-    normalized = " ".join(district.lower().split())
-    for key, coords in DISTRICT_POLYGONS.items():
-        if key in normalized:
-            return {"type": "Polygon", "coordinates": coords}
-    return {"type": "Polygon", "coordinates": DISTRICT_POLYGONS["hòa vang"]}
+def evaluate_zone_area(
+    planned_area: float | None, current_area: float | None
+) -> tuple[float | None, str, list[str]]:
+    """Resolve effective area with fallback to current area and flag data anomalies."""
+    has_planned = planned_area is not None and planned_area > 0
+    has_current = current_area is not None and current_area > 0
+
+    if has_planned:
+        effective_area = planned_area
+        area_status = "VERIFIED"
+    elif has_current:
+        effective_area = current_area
+        area_status = "FALLBACK_TO_CURRENT"
+    else:
+        effective_area = None
+        area_status = "PENDING_SURVEY"
+
+    anomalies: list[str] = []
+    if planned_area is not None and current_area is not None and current_area > planned_area:
+        anomalies.append("CURRENT_EXCEEDS_PLAN")
+    if not has_planned and not has_current:
+        anomalies.append("MISSING_ALL_AREA")
+
+    return effective_area, area_status, anomalies
+
+
+def get_zone_geojson(ward: str, district: str, idx: int) -> dict:
+    """Resolve ward-first GeoJSON polygon with district fallback and deterministic jitter."""
+    norm_ward = " ".join(ward.lower().split())
+    norm_district = " ".join(district.lower().split())
+
+    base_ring = None
+    for key, coords in WARD_POLYGONS.items():
+        if key in norm_ward:
+            base_ring = coords[0]
+            break
+
+    if base_ring is None:
+        for key, coords in DISTRICT_POLYGONS.items():
+            if key in norm_district:
+                base_ring = coords[0]
+                break
+
+    if base_ring is None:
+        base_ring = DISTRICT_POLYGONS["hòa vang"][0]
+
+    # Deterministic jitter (0.0005 deg grid) so zones within the same ward do not overlap
+    lon_offset = (idx % 10) * 0.0005
+    lat_offset = (idx // 10) * 0.0005
+    jittered_ring = [
+        [round(lon + lon_offset, 5), round(lat + lat_offset, 5)]
+        for lon, lat in base_ring
+    ]
+    return {"type": "Polygon", "coordinates": [jittered_ring]}
 
 
 def sql_escape(value: str) -> str:
     return value.replace("'", "''")
 
 
-def run_psql(sql: str) -> str:
+def execute_etl_transaction(
+    tenant_params: tuple,
+    zone_rows: list[tuple],
+    batch_params: tuple,
+    fallback_sql: str,
+) -> None:
+    """Execute ETL transaction via psycopg2 parameterized queries when available, or in-memory psql pipe."""
+    dsn = os.environ.get("DATABASE_URL")
+    try:
+        import psycopg2  # type: ignore
+    except ImportError:
+        psycopg2 = None
+
+    if psycopg2 is not None and dsn:
+        conn = None
+        try:
+            conn = psycopg2.connect(dsn)
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO tenants (id, code, name, status, tax_code, legal_rep, address, metadata)
+                    VALUES (%s, %s, %s, 'ACTIVE', %s, %s, %s, %s::jsonb)
+                    ON CONFLICT (id) DO UPDATE SET
+                        code = EXCLUDED.code,
+                        name = EXCLUDED.name,
+                        status = EXCLUDED.status,
+                        tax_code = EXCLUDED.tax_code,
+                        metadata = EXCLUDED.metadata;
+                    """,
+                    tenant_params,
+                )
+                for z_params in zone_rows:
+                    cur.execute(
+                        """
+                        INSERT INTO production_zones (
+                            id, tenant_id, zone_code, puc_code, name, crop_type,
+                            area_hectares, location_geojson, certification, farming_standard, metadata
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, 'VietGAP', 'VietGAP', %s::jsonb)
+                        ON CONFLICT (id) DO UPDATE SET
+                            tenant_id = EXCLUDED.tenant_id,
+                            zone_code = EXCLUDED.zone_code,
+                            puc_code = EXCLUDED.puc_code,
+                            name = EXCLUDED.name,
+                            crop_type = EXCLUDED.crop_type,
+                            area_hectares = EXCLUDED.area_hectares,
+                            location_geojson = EXCLUDED.location_geojson,
+                            certification = EXCLUDED.certification,
+                            farming_standard = EXCLUDED.farming_standard,
+                            metadata = EXCLUDED.metadata;
+                        """,
+                        z_params,
+                    )
+                cur.execute(
+                    """
+                    INSERT INTO batches (
+                        id, tenant_id, zone_id, batch_code, public_trace_key,
+                        product_name, quantity, unit, harvest_date, status, certificate_code, metadata
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, 2000.000, 'kg', CURRENT_DATE, 'HARVESTED', 'VG-DAN-2026-001', %s::jsonb)
+                    ON CONFLICT (id) DO UPDATE SET
+                        tenant_id = EXCLUDED.tenant_id,
+                        zone_id = EXCLUDED.zone_id,
+                        batch_code = EXCLUDED.batch_code,
+                        public_trace_key = EXCLUDED.public_trace_key,
+                        product_name = EXCLUDED.product_name,
+                        quantity = EXCLUDED.quantity,
+                        unit = EXCLUDED.unit,
+                        status = CASE
+                            WHEN batches.status IN ('INSPECTING', 'IN_STORAGE', 'DISTRIBUTING', 'SOLD') THEN batches.status
+                            ELSE EXCLUDED.status
+                        END,
+                        certificate_code = EXCLUDED.certificate_code,
+                        metadata = EXCLUDED.metadata;
+                    """,
+                    batch_params,
+                )
+            conn.commit()
+            return
+        except Exception:
+            if conn is not None:
+                conn.rollback()
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
+
+    # In-memory docker compose exec fallback (zero temporary .sql files on disk)
     pg_user = os.environ.get("POSTGRES_USER", "nodus_admin")
     pg_db = os.environ.get("POSTGRES_DB", "nodus_core")
     cmd = [
         "docker", "compose", "exec", "-T", "postgres",
         "psql", "-U", pg_user, "-d", pg_db, "-v", "ON_ERROR_STOP=1",
     ]
-    proc = subprocess.run(cmd, input=sql, text=True, encoding="utf-8", capture_output=True)
+    proc = subprocess.run(cmd, input=fallback_sql, text=True, encoding="utf-8", capture_output=True)
     if proc.returncode != 0:
-        raise RuntimeError(f"psql failed:\n{proc.stderr}")
-    return proc.stdout
+        raise RuntimeError(f"psql transaction failed (rolled back):\n{proc.stderr}")
 
 
 def parse_args():
@@ -163,6 +360,17 @@ def main():
         "document": "1510/TB-SNN",
         "license": "CC-BY 4.0",
     }, ensure_ascii=False)
+
+    tenant_params = (
+        args.tenant_id,
+        args.tenant_code,
+        args.tenant_name,
+        args.tax_code,
+        "Sở NN&PTNT TP. Đà Nẵng",
+        "24 Trần Phú, Quận Hải Châu, Thành phố Đà Nẵng",
+        tenant_meta,
+    )
+    zone_rows: list[tuple] = []
 
     sql_parts = [
         "BEGIN;",
@@ -201,21 +409,8 @@ ON CONFLICT (id) DO UPDATE SET
 
         planned_area = parse_vn_float(row.get("Diện tích quy hoạch (ha)", ""))
         current_area = parse_vn_float(row.get("Diện tích hiện trạng (ha)", ""))
-        effective_area = planned_area if (planned_area and planned_area > 0) else current_area
-        area_sql = f"{effective_area:.2f}" if (effective_area is not None and effective_area > 0) else "NULL"
-
-        anomalies = []
-        if planned_area is not None and current_area is not None and current_area > planned_area:
-            anomalies.append("CURRENT_EXCEEDS_PLAN")
-        if not (planned_area and planned_area > 0) and not (current_area and current_area > 0):
-            anomalies.append("MISSING_ALL_AREA")
-
-        if planned_area and planned_area > 0:
-            area_status = "VERIFIED"
-        elif current_area and current_area > 0:
-            area_status = "FALLBACK_TO_CURRENT"
-        else:
-            area_status = "PENDING_SURVEY"
+        effective_area, area_status, anomalies = evaluate_zone_area(planned_area, current_area)
+        area_sql = f"{effective_area:.2f}" if effective_area is not None else "NULL"
 
         area_parts = [p for p in [location, ward, district] if p]
         display_name = f"{crop_type} — {', '.join(area_parts)}" if area_parts else crop_type
@@ -225,7 +420,8 @@ ON CONFLICT (id) DO UPDATE SET
         if first_veg_zone_id is None and "rau" in crop_type.lower():
             first_veg_zone_id = zone_id
 
-        geojson_str = sql_escape(json.dumps(get_district_geojson(district)))
+        geojson_json = json.dumps(get_zone_geojson(ward, district, idx))
+        geojson_str = sql_escape(geojson_json)
         zone_meta = json.dumps({
             "district": district,
             "ward": ward,
@@ -238,6 +434,18 @@ ON CONFLICT (id) DO UPDATE SET
             "source": "Cổng Dữ liệu Mở TP. Đà Nẵng (1510/TB-SNN)",
             "license": "CC-BY 4.0",
         }, ensure_ascii=False)
+
+        zone_rows.append((
+            zone_id,
+            args.tenant_id,
+            puc_code,
+            puc_code,
+            display_name,
+            crop_type,
+            effective_area,
+            geojson_json,
+            zone_meta,
+        ))
 
         sql_parts.append(f"""
 INSERT INTO production_zones (
@@ -276,6 +484,15 @@ ON CONFLICT (id) DO UPDATE SET
         "source": "Cổng Dữ liệu Mở TP. Đà Nẵng",
         "license": "CC-BY 4.0",
     }, ensure_ascii=False)
+    batch_params = (
+        BATCH_ID,
+        args.tenant_id,
+        target_zone_id,
+        args.batch_code,
+        args.trace_key,
+        BATCH_PRODUCT,
+        batch_meta,
+    )
 
     sql_parts.append(f"""
 INSERT INTO batches (
@@ -304,13 +521,16 @@ ON CONFLICT (id) DO UPDATE SET
     product_name = EXCLUDED.product_name,
     quantity = EXCLUDED.quantity,
     unit = EXCLUDED.unit,
-    status = EXCLUDED.status,
+    status = CASE
+        WHEN batches.status IN ('INSPECTING', 'IN_STORAGE', 'DISTRIBUTING', 'SOLD') THEN batches.status
+        ELSE EXCLUDED.status
+    END,
     certificate_code = EXCLUDED.certificate_code,
     metadata = EXCLUDED.metadata;
 """)
     sql_parts.append("COMMIT;")
 
-    run_psql("\n".join(sql_parts))
+    execute_etl_transaction(tenant_params, zone_rows, batch_params, "\n".join(sql_parts))
     print(f"[OK] Ingested tenant '{args.tenant_code}', {len(records)} production_zones, and batch '{args.batch_code}' (zone={target_zone_id}).")
 
 
