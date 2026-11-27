@@ -44,6 +44,7 @@ export const STAGE_LABELS = {
 
 export const EVENT_TYPE_LABELS = {
   BATCH_CREATED: 'Lập lô nông sản mới',
+  QR_GENERATED: 'Sinh mã QR truy xuất',
   QUALITY_INSPECTED: 'Hoàn tất kiểm tra chất lượng',
   STORED_IN_WAREHOUSE: 'Đã nhập kho bảo quản',
   DISPATCHED_TO_MARKET: 'Xuất kho đi phân phối',
@@ -51,6 +52,7 @@ export const EVENT_TYPE_LABELS = {
 
 export const AUDIT_ACTION_LABELS = {
   BATCH_CREATED: 'Ghi nhận tạo lô mới',
+  QR_GENERATED: 'Niêm phong sự kiện sinh QR',
   INSPECTION_RECORDED: 'Lưu kết quả kiểm định',
   WAREHOUSE_INTAKE: 'Lưu phiếu nhập kho',
   DISTRIBUTION_DISPATCHED: 'Lưu phiếu xuất bán',

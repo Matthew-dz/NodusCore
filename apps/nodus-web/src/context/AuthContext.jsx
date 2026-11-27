@@ -20,8 +20,8 @@ function formatAuthError(err) {
   return 'Không thể hoàn tất xác thực Keycloak SSO.';
 }
 
-export function AuthProvider({ children }) {
-  const [status, setStatus] = useState('loading');
+export function AuthProvider({ children, deferAutoInit = false }) {
+  const [status, setStatus] = useState(() => (deferAutoInit ? 'unauthenticated' : 'loading'));
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [sessionNotice, setSessionNotice] = useState('');
@@ -111,6 +111,10 @@ export function AuthProvider({ children }) {
   );
 
   useEffect(() => {
+    if (deferAutoInit || keycloak.didInitialize) {
+      return undefined;
+    }
+
     let active = true;
     setStatus('loading');
     setError(null);
@@ -140,7 +144,7 @@ export function AuthProvider({ children }) {
     return () => {
       active = false;
     };
-  }, [bindKeycloakEvents]);
+  }, [bindKeycloakEvents, deferAutoInit]);
 
   const login = useCallback(async () => {
     setError(null);

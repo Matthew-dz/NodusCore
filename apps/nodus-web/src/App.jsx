@@ -20,29 +20,56 @@ import WarehouseWorkspace from './components/WarehouseWorkspace';
 import DistributorWorkspace from './components/DistributorWorkspace';
 import PublicTracePage from './components/PublicTracePage';
 
-function AppShell() {
-  const [pathname, setPathname] = useState(() => window.location.pathname);
+function parseTraceLocation(pathname, search) {
+  const isTraceRoute = pathname === '/trace' || pathname.startsWith('/trace/');
+  if (!isTraceRoute) {
+    return { isTraceRoute: false, traceKey: '', routeInvalid: false };
+  }
+
+  if (pathname.startsWith('/trace/')) {
+    const rawSegment = pathname.slice('/trace/'.length).replace(/\/+$/, '');
+    if (!rawSegment) {
+      return { isTraceRoute: true, traceKey: '', routeInvalid: false };
+    }
+    try {
+      return {
+        isTraceRoute: true,
+        traceKey: decodeURIComponent(rawSegment),
+        routeInvalid: false,
+      };
+    } catch {
+      return { isTraceRoute: true, traceKey: '', routeInvalid: true };
+    }
+  }
+
+  const params = new URLSearchParams(search || '');
+  const queryKey = params.get('key') ?? params.get('trace_key') ?? '';
+  return {
+    isTraceRoute: true,
+    traceKey: queryKey,
+    routeInvalid: false,
+  };
+}
+
+function AppShell({ locationState, onLocationChange }) {
   const [adminTab, setAdminTab] = useState('farmer');
   const { status, user, error, sessionNotice, config, login, logout, retryAuth, dismissNotice } =
     useAuth();
 
+  const { pathname, search } = locationState;
+
   const navigate = (to) => {
-    if (to !== window.location.pathname) {
-      window.history.pushState({}, '', to);
-      setPathname(to);
+    const nextUrl = new URL(to, window.location.origin);
+    if (nextUrl.pathname !== window.location.pathname || nextUrl.search !== window.location.search) {
+      window.history.pushState({}, '', `${nextUrl.pathname}${nextUrl.search}`);
+      onLocationChange({
+        pathname: nextUrl.pathname,
+        search: nextUrl.search,
+      });
     }
   };
 
-  useEffect(() => {
-    const onPopState = () => setPathname(window.location.pathname);
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
-
-  const isTraceRoute = pathname === '/trace' || pathname.startsWith('/trace/');
-  const traceKey = pathname.startsWith('/trace/')
-    ? decodeURIComponent(pathname.replace('/trace/', ''))
-    : '';
+  const { isTraceRoute, traceKey, routeInvalid } = parseTraceLocation(pathname, search);
 
   const activeWorkspaceRole = user?.role === 'coop_admin' ? adminTab : user?.role;
 
@@ -58,9 +85,13 @@ function AppShell() {
         onNavigate={navigate}
       />
 
-      <main className="mx-auto max-w-7xl px-4 py-8">
+      <main className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-8">
         {isTraceRoute ? (
-          <PublicTracePage traceKey={traceKey} onNavigate={navigate} />
+          <PublicTracePage
+            traceKey={traceKey}
+            routeInvalid={routeInvalid}
+            onNavigate={navigate}
+          />
         ) : status === 'loading' ? (
           <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald-600" />
@@ -253,9 +284,27 @@ function AppShell() {
 }
 
 export default function App() {
+  const [locationState, setLocationState] = useState(() => ({
+    pathname: window.location.pathname,
+    search: window.location.search,
+  }));
+
+  useEffect(() => {
+    const onPopState = () =>
+      setLocationState({
+        pathname: window.location.pathname,
+        search: window.location.search,
+      });
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const isTraceRoute =
+    locationState.pathname === '/trace' || locationState.pathname.startsWith('/trace/');
+
   return (
-    <AuthProvider>
-      <AppShell />
+    <AuthProvider deferAutoInit={isTraceRoute}>
+      <AppShell locationState={locationState} onLocationChange={setLocationState} />
     </AuthProvider>
   );
 }
