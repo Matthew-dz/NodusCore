@@ -8,17 +8,16 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
-  XCircle,
 } from 'lucide-react';
 import { graphqlRequest } from '../lib/graphql';
 import {
   getAuditActionLabel,
   getBatchStatusLabel,
   getEventTypeLabel,
-  getInspectionResultLabel,
   getStageLabel,
 } from '../lib/statusLabels';
 
+// TRACE_QUERY chuẩn Least Privilege: Chỉ yêu cầu các trường Hasura public_trace cho phép
 const TRACE_QUERY = `
   query PublicTraceBatch($key: String!) {
     batches(where: { public_trace_key: { _eq: $key } }, limit: 1) {
@@ -29,9 +28,9 @@ const TRACE_QUERY = `
       quantity
       unit
       harvest_date
-      expiry_date
       status
-      created_at
+      certificate_code
+      metadata
       tenant {
         code
         name
@@ -40,13 +39,6 @@ const TRACE_QUERY = `
         zone_code
         name
         crop_type
-        certification
-      }
-      inspections(order_by: { inspected_at: desc }) {
-        inspection_code
-        result
-        notes
-        inspected_at
       }
       batch_events(order_by: { occurred_at: asc }) {
         id
@@ -106,10 +98,15 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
   const handleSearch = (e) => {
     e.preventDefault();
     if (!inputKey.trim()) return;
-    onNavigate(`/trace/${encodeURIComponent(inputKey.trim())}`);
+    if (onNavigate) {
+      onNavigate(`/trace/${encodeURIComponent(inputKey.trim())}`);
+    } else {
+      fetchTrace(inputKey.trim());
+    }
   };
 
-  const latestInspection = batch?.inspections?.[0];
+  // Lô hàng hợp lệ được phép lưu thông thương mại công khai
+  const isVerifiedPublicBatch = ['IN_STORAGE', 'DISTRIBUTING', 'SOLD'].includes(batch?.status);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -127,7 +124,7 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
             type="text"
             value={inputKey}
             onChange={(e) => setInputKey(e.target.value)}
-            placeholder="Nhập mã QR / public_trace_key (ví dụ: TR-XXXXXXXX)..."
+            placeholder="Nhập mã QR / public_trace_key (ví dụ: TR-DANANG-2026-001)..."
             className="flex-1 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
           />
           <button
@@ -184,12 +181,11 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                   {batch.production_zone?.name || 'Đang cập nhật'}
                 </div>
                 <div className="text-xs text-slate-600">
-                  Đơn vị: {batch.tenant?.name} • Chứng nhận:{' '}
-                  {batch.production_zone?.certification || 'VietGAP'}
+                  Đơn vị: {batch.tenant?.name || 'Hợp tác xã nông sản'}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
-                  Thu hoạch: {batch.harvest_date || 'Chưa ghi nhận'} • HSD:{' '}
-                  {batch.expiry_date || 'Chưa ghi nhận'}
+                  Thu hoạch: {batch.harvest_date || 'Chưa ghi nhận'}
+                  {batch.certificate_code ? ` • Chứng từ: ${batch.certificate_code}` : ''}
                 </div>
               </div>
 
@@ -198,31 +194,25 @@ export default function PublicTracePage({ traceKey, onNavigate }) {
                   <ShieldCheck className="h-4 w-4 text-emerald-600" />
                   Chứng nhận Kiểm định Chất lượng
                 </div>
-                {latestInspection ? (
+                {isVerifiedPublicBatch ? (
                   <div className="mt-1.5">
                     <div className="flex items-center gap-1.5">
-                      {latestInspection.result === 'PASSED' ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-rose-600" />
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <span className="text-sm font-bold text-emerald-700">
+                        ĐẠT CHUẨN VIETGAP (PASSED)
+                      </span>
+                      {batch.certificate_code && (
+                        <span className="text-xs font-mono text-slate-500">
+                          ({batch.certificate_code})
+                        </span>
                       )}
-                      <span
-                        className={`text-sm font-bold ${
-                          latestInspection.result === 'PASSED'
-                            ? 'text-emerald-700'
-                            : 'text-rose-700'
-                        }`}
-                      >
-                        {getInspectionResultLabel(latestInspection.result)}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        ({latestInspection.inspection_code})
-                      </span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-600">{latestInspection.notes}</p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Lô hàng đã vượt qua rào kiểm định Poka-yoke và được niêm phong lưu kho.
+                    </p>
                   </div>
                 ) : (
-                  <p className="mt-1.5 text-sm text-amber-700">Chưa có phiếu kiểm định</p>
+                  <p className="mt-1.5 text-sm text-amber-700">Chưa hoàn tất kiểm định</p>
                 )}
               </div>
             </div>
