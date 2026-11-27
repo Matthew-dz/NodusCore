@@ -112,10 +112,11 @@ Chạy script tự động hóa để nạp migration, gọi API kéo dữ liệ
 *Trên Linux / macOS:*
 ```bash
 # Nạp DDL và Sổ cái Mật mã
-docker compose exec -T postgres psql -U postgres -d nodus_db < core/postgres/02_audit_trail.sql
-docker compose exec -T postgres psql -U postgres -d nodus_db < core/postgres/04_alter_schema_real_data.sql
+docker compose exec -T postgres psql -U nodus_admin -d nodus_core < core/postgres/02_audit_trail.sql
+docker compose exec -T postgres psql -U nodus_admin -d nodus_core < core/postgres/04_alter_schema_real_data.sql
+docker compose exec -T postgres psql -U nodus_admin -d nodus_core < core/postgres/06_consolidate_core_fixes.sql
 
-# Kéo Dữ liệu Mở thực tế từ OpenStreetMap API
+# Kéo Dữ liệu Mở thực tế
 python3 core/scripts/ingest_open_data.py
 
 # Khởi động lại Hasura
@@ -136,7 +137,7 @@ npm run dev
 | Dịch vụ | Địa chỉ truy cập | Tài khoản mặc định | Mô tả chức năng |
 | :--- | :--- | :--- | :--- |
 | **Bàn làm việc Nông hộ** | `http://localhost:3000` | OIDC Login qua Keycloak | Tạo lô hàng, xem chuỗi băm, in mã QR |
-| **Tra cứu Công khai** | `http://localhost:3000/trace/TR-HOANHON-2026` | Không yêu cầu đăng nhập | Cổng đối soát minh bạch chuỗi cung ứng |
+| **Tra cứu Công khai** | `http://localhost:3000/trace/TR-DANANG-2026-001` | Không yêu cầu đăng nhập | Cổng đối soát minh bạch chuỗi cung ứng |
 | **API Gateway (APISIX)** | `http://localhost:9080` | Header: `X-API-KEY` | Điểm tiếp nhận API tập trung của toàn hệ thống |
 | **Hasura GraphQL Engine** | `http://localhost:8082` | Secret trong `.env` | Trình quản trị GraphQL Schema & Phân quyền |
 | **Keycloak IAM Admin** | `http://localhost:8081` | `admin` / `admin` | Quản trị Realm `nodus-core`, User & Theme |
@@ -152,17 +153,17 @@ Dành cho Ban Giám khảo thẩm định trực tiếp tính toàn vẹn của 
 ### 1. Kiểm chứng Cơ chế Mật mã Niêm phong (SHA-256 Hash Chaining)
 Kiểm tra tính liên kết bất biến giữa khối khởi nguyên (Genesis Block) và khối kế tiếp:
 ```bash
-docker compose exec postgres psql -U postgres -d nodus_db -c "
-SELECT id, event_type, prev_hash, current_hash, created_at 
+docker compose exec postgres psql -U nodus_admin -d nodus_core -c "
+SELECT id, action, prev_hash, sha256_hash, sealed_at 
 FROM batch_audit_trail 
-ORDER BY created_at ASC;"
+ORDER BY sealed_at ASC;"
 ```
-*Kết quả thẩm định:* Khối 1 có `prev_hash` gồm 64 số `0`. Khối 2 có `prev_hash` trùng khớp 100% với `current_hash` của khối 1.
+*Kết quả thẩm định:* Khối 1 có `prev_hash` gồm 64 số `0`. Khối 2 có `prev_hash` trùng khớp 100% với `sha256_hash` của khối 1.
 
 ### 2. Kiểm chứng Rào chắn Poka-yoke Append-Only
 Thử nghiệm can thiệp trái phép hoặc xóa lịch sử lô hàng:
 ```bash
-docker compose exec postgres psql -U postgres -d nodus_db -c "DELETE FROM batch_audit_trail;"
+docker compose exec postgres psql -U nodus_admin -d nodus_core -c "DELETE FROM batch_audit_trail;"
 ```
 *Kết quả thẩm định:* PostgreSQL kích hoạt trigger và chặn đứng giao dịch:
 `ERROR: Poka-yoke violation: batch_audit_trail is immutable (append-only); DELETE operations are strictly forbidden.`

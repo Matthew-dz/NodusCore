@@ -1,4 +1,4 @@
-﻿# Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
+# Copyright 2026 NodusCore Team. Licensed under the Apache License, Version 2.0.
 # NodusCore DX-OS | Import n8n Workflows & Register Hasura Event Trigger
 
 $ErrorActionPreference = "Stop"
@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 Write-Host "=== 1. Importing n8n workflow: batch_qr_pipeline.json ===" -ForegroundColor Cyan
 docker compose cp "core\n8n\workflows\batch_qr_pipeline.json" "n8n:/tmp/batch_qr_pipeline.json"
 docker compose exec n8n n8n import:workflow --input=/tmp/batch_qr_pipeline.json
-docker compose exec n8n n8n publish:workflow --id=nodus-batch-qr-pipeline
+docker compose exec n8n n8n update:workflow --id=nodus-batch-qr-pipeline --active=true
 docker compose restart n8n
 
 Write-Host "=== 2. Waiting for n8n & Hasura ===" -ForegroundColor Cyan

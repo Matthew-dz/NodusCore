@@ -80,7 +80,7 @@
       "email": "farmer_demo@noduscore.local",
       "attributes": {
         "tenant_id": [
-          "htx-danang"
+          "a0000000-0000-0000-0000-000000000000"
         ]
       },
       "credentials": [
@@ -103,7 +103,7 @@
       "email": "coop_demo@noduscore.local",
       "attributes": {
         "tenant_id": [
-          "htx-danang"
+          "a0000000-0000-0000-0000-000000000000"
         ]
       },
       "credentials": [
@@ -126,7 +126,7 @@
       "email": "inspector_demo@noduscore.local",
       "attributes": {
         "tenant_id": [
-          "htx-danang"
+          "a0000000-0000-0000-0000-000000000000"
         ]
       },
       "credentials": [
@@ -149,7 +149,7 @@
       "email": "warehouse_demo@noduscore.local",
       "attributes": {
         "tenant_id": [
-          "htx-danang"
+          "a0000000-0000-0000-0000-000000000000"
         ]
       },
       "credentials": [
@@ -172,7 +172,7 @@
       "email": "distributor_demo@noduscore.local",
       "attributes": {
         "tenant_id": [
-          "htx-danang"
+          "a0000000-0000-0000-0000-000000000000"
         ]
       },
       "credentials": [

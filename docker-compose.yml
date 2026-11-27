@@ -88,6 +88,7 @@ services:
       done;
       mc mb -p local/nodus-batches;
       mc anonymous set public local/nodus-batches;
+      mc anonymous set upload local/nodus-batches;
       echo 'MinIO bucket nodus-batches ready (public read/write enabled for demo).';
       "
     restart: "no"
@@ -120,6 +121,7 @@ services:
     restart: unless-stopped
     depends_on:
       - hasura
+      - keycloak
       - n8n
     volumes:
       - ./core/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
