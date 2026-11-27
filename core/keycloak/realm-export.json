@@ -2,6 +2,7 @@
   "realm": "nodus-core",
   "enabled": true,
   "displayName": "NodusCore DX-OS",
+  "loginTheme": "nodus",
   "sslRequired": "external",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
