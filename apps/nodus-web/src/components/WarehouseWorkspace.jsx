@@ -8,12 +8,13 @@ import {
   PackageCheck,
   RefreshCw,
   ShieldAlert,
+  Thermometer,
+  Warehouse,
   X,
 } from 'lucide-react';
 import {
-  getBatchStatusLabel,
-  getBatchStatusStyle,
-  getInspectionResultLabel,
+  getInspectionStatusInfo,
+  getWarehouseIntakeStatusInfo,
 } from '../lib/statusLabels';
 import {
   fetchQualityWarehouseBatches,
@@ -22,15 +23,28 @@ import {
 } from '../services/qualityWarehouseService';
 
 function buildPokaYokeAlert(batch, rawMessage) {
-  const inspectionResult = batch?.inspections?.[0]?.result;
-  if (inspectionResult === 'FAILED') {
+  const inspectionInfo = getInspectionStatusInfo(batch?.inspections);
+
+  if (inspectionInfo.code === 'FAILED') {
     return {
       batchCode: batch.batch_code,
       productName: batch.product_name,
-      inspectionLabel: 'Không đạt chuẩn',
+      inspectionLabel: inspectionInfo.label,
       title: 'Không thể nhập kho: Lô hàng có kết quả kiểm định Không đạt!',
       description:
-        'Lô nông sản này chưa đạt yêu cầu chất lượng nên hệ thống chặn không cho đưa vào kho bảo quản.',
+        'Lô nông sản này đã kiểm định nhưng Không đạt yêu cầu nên hệ thống chặn không cho đưa vào kho bảo quản.',
+      detail: rawMessage,
+    };
+  }
+
+  if (inspectionInfo.code === 'UNKNOWN') {
+    return {
+      batchCode: batch.batch_code,
+      productName: batch.product_name,
+      inspectionLabel: inspectionInfo.label,
+      title: 'Không thể nhập kho: Trạng thái kiểm định không hợp lệ hoặc chưa rõ!',
+      description:
+        'Backend từ chối nhập kho vì trạng thái kiểm định hiện tại chưa xác nhận Đạt chuẩn.',
       detail: rawMessage,
     };
   }
@@ -48,6 +62,10 @@ function buildPokaYokeAlert(batch, rawMessage) {
 
 export default function WarehouseWorkspace({ user }) {
   const [batches, setBatches] = useState([]);
+  const [storageLocation, setStorageLocation] = useState(
+    'Kho lạnh Trung tâm HTX Đà Nẵng - Kệ A1'
+  );
+  const [storageTemp, setStorageTemp] = useState('4.0');
   const [loadingList, setLoadingList] = useState(false);
   const [loadingId, setLoadingId] = useState(null);
   const [pokaYokeModal, setPokaYokeModal] = useState(null);
@@ -91,6 +109,17 @@ export default function WarehouseWorkspace({ user }) {
   const handleIntake = async (batch) => {
     if (inFlightRef.current) return;
 
+    const trimmedLoc = storageLocation.trim();
+    const numericTemp = Number(storageTemp);
+    if (!trimmedLoc) {
+      setApiError('Vui lòng nhập vị trí kho / kệ bảo quản trước khi nhập kho.');
+      return;
+    }
+    if (storageTemp === '' || !Number.isFinite(numericTemp) || numericTemp < -30 || numericTemp > 50) {
+      setApiError('Nhiệt độ bảo quản phải nằm trong khoảng -30°C đến 50°C.');
+      return;
+    }
+
     inFlightRef.current = true;
     setLoadingId(batch.id);
     setPokaYokeModal(null);
@@ -104,6 +133,8 @@ export default function WarehouseWorkspace({ user }) {
         role: user.role,
         batch,
         actorUsername: user.username,
+        storageLocation: trimmedLoc,
+        storageTemp: numericTemp,
       });
 
       setBatches((prev) =>
@@ -111,10 +142,9 @@ export default function WarehouseWorkspace({ user }) {
           item.id === batch.id ? { ...item, status: updatedBatch.status } : item
         )
       );
+      const nextIntakeInfo = getWarehouseIntakeStatusInfo(updatedBatch.status);
       setSuccessMsg(
-        `Đã nhập kho thành công lô ${updatedBatch.batch_code} (${batch.product_name}) — trạng thái: ${getBatchStatusLabel(
-          updatedBatch.status
-        )}.`
+        `Đã nhập kho thành công lô ${updatedBatch.batch_code} (${batch.product_name}) tại ${trimmedLoc} (${numericTemp}°C) — ${nextIntakeInfo.label}.`
       );
       if (warning) {
         setAuditWarning(warning);
@@ -187,7 +217,7 @@ export default function WarehouseWorkspace({ user }) {
                   <strong className="text-slate-900">{pokaYokeModal.productName}</strong>
                 </div>
                 <div className="sm:col-span-2">
-                  <span className="text-slate-500">Tình trạng kiểm định: </span>
+                  <span className="text-slate-500">Trạng thái kiểm định: </span>
                   <span className="inline-flex items-center whitespace-nowrap rounded-full bg-rose-100 px-2.5 py-0.5 font-bold text-rose-800">
                     {pokaYokeModal.inspectionLabel}
                   </span>
@@ -295,6 +325,45 @@ export default function WarehouseWorkspace({ user }) {
           </button>
         </div>
 
+        <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-12">
+          <div className="sm:col-span-8">
+            <label
+              htmlFor="warehouse-location"
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-700"
+            >
+              <Warehouse className="h-3.5 w-3.5 text-sky-600" />
+              Kho / Vị trí kệ tiếp nhận <span className="text-rose-600">*</span>
+            </label>
+            <input
+              id="warehouse-location"
+              type="text"
+              value={storageLocation}
+              onChange={(e) => setStorageLocation(e.target.value)}
+              placeholder="Ví dụ: Kho lạnh Trung tâm HTX Đà Nẵng - Kệ A1"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            />
+          </div>
+          <div className="sm:col-span-4">
+            <label
+              htmlFor="warehouse-temp"
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-700"
+            >
+              <Thermometer className="h-3.5 w-3.5 text-sky-600" />
+              Nhiệt độ bảo quản (°C) <span className="text-rose-600">*</span>
+            </label>
+            <input
+              id="warehouse-temp"
+              type="number"
+              min="-30"
+              max="50"
+              step="0.5"
+              value={storageTemp}
+              onChange={(e) => setStorageTemp(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            />
+          </div>
+        </div>
+
         {loadError && (
           <div
             role="alert"
@@ -321,8 +390,8 @@ export default function WarehouseWorkspace({ user }) {
                 <th className="whitespace-nowrap py-2 pr-3">Mã lô</th>
                 <th className="whitespace-nowrap py-2 pr-3">Nông sản</th>
                 <th className="whitespace-nowrap py-2 pr-3">Sản lượng</th>
-                <th className="whitespace-nowrap py-2 pr-3">Trạng thái</th>
-                <th className="whitespace-nowrap py-2 pr-3">Kết quả Kiểm định</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái kiểm định</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái nhập kho</th>
                 <th className="whitespace-nowrap py-2">Thao tác</th>
               </tr>
             </thead>
@@ -339,11 +408,11 @@ export default function WarehouseWorkspace({ user }) {
               ) : (
                 <>
                   {batches.map((b) => {
-                    const insp = b.inspections?.[0];
-                    const alreadyStored =
-                      b.status === 'IN_STORAGE' ||
-                      b.status === 'DISTRIBUTING' ||
-                      b.status === 'SOLD';
+                    const inspectionInfo = getInspectionStatusInfo(b.inspections);
+                    const intakeInfo = getWarehouseIntakeStatusInfo(b.status);
+                    const alreadyReceived = intakeInfo.code === 'RECEIVED';
+                    const isRejectedOrFailed =
+                      b.status === 'REJECTED' || inspectionInfo.code === 'FAILED';
                     const isProcessing = loadingId === b.id;
 
                     return (
@@ -352,41 +421,45 @@ export default function WarehouseWorkspace({ user }) {
                           {b.batch_code}
                         </td>
                         <td className="py-3 pr-3 font-medium text-slate-900">{b.product_name}</td>
-                        <td className="py-3 pr-3 text-slate-600">
+                        <td className="py-3 pr-3 whitespace-nowrap text-slate-600">
                           {b.quantity} {b.unit}
                         </td>
                         <td className="py-3 pr-3">
                           <span
-                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
-                              b.status
-                            )}`}
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${inspectionInfo.badgeClass}`}
                           >
-                            {getBatchStatusLabel(b.status)}
+                            {inspectionInfo.label}
                           </span>
                         </td>
                         <td className="py-3 pr-3">
-                          {insp ? (
-                            <span
-                              className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                insp.result === 'PASSED'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}
-                            >
-                              {getInspectionResultLabel(insp.result)}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                              Chưa kiểm định
-                            </span>
-                          )}
+                          <span
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${intakeInfo.badgeClass}`}
+                          >
+                            {intakeInfo.label}
+                          </span>
                         </td>
                         <td className="py-3">
-                          {alreadyStored ? (
+                          {alreadyReceived ? (
                             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               Đã nhập kho
                             </span>
+                          ) : isRejectedOrFailed ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="inline-flex items-center whitespace-nowrap text-xs font-medium text-rose-700">
+                                Không đủ điều kiện
+                              </span>
+                              <button
+                                type="button"
+                                disabled={Boolean(loadingId)}
+                                onClick={() => handleIntake(b)}
+                                title="Thử nhập kho để kiểm chứng cơ chế chặn Poka-yoke từ PostgreSQL"
+                                className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {isProcessing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                {isProcessing ? 'Đang kiểm tra...' : 'Thử nhập kho (Poka-yoke)'}
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"

@@ -9,23 +9,50 @@ import {
   X,
 } from 'lucide-react';
 import {
-  getBatchStatusLabel,
-  getBatchStatusStyle,
   getInspectionResultLabel,
+  getInspectionStatusInfo,
+  getWarehouseIntakeStatusInfo,
 } from '../lib/statusLabels';
 import {
   fetchQualityWarehouseBatches,
   submitBatchInspection,
 } from '../services/qualityWarehouseService';
 
-function validateInspectionForm({ agency, metrics }) {
+const DEFAULT_PASS_NOTE = 'Đạt tiêu chuẩn VietGAP xuất kho.';
+
+const RESIDUE_TEST_OPTIONS = [
+  'Không phát hiện (Âm tính)',
+  'Phát hiện vượt ngưỡng (Dương tính)',
+  'Chưa xác định',
+];
+
+function validateInspectionForm({ result, agency, brix, residueTest, notes }) {
   const errors = {};
+  const brixNum = Number(brix);
+  const trimmedNotes = notes.trim();
+
   if (!agency.trim()) {
     errors.agency = 'Vui lòng nhập đơn vị kiểm định.';
   }
-  if (!metrics.trim()) {
-    errors.metrics = 'Vui lòng nhập chỉ số kiểm nghiệm.';
+
+  if (brix === '' || brix === null || brix === undefined) {
+    errors.brix = 'Vui lòng nhập độ Brix.';
+  } else if (!Number.isFinite(brixNum) || brixNum < 0 || brixNum > 100) {
+    errors.brix = 'Độ Brix phải là số từ 0 đến 100 (%).';
   }
+
+  if (!residueTest.trim()) {
+    errors.residueTest = 'Vui lòng chọn kết quả test kit dư lượng.';
+  }
+
+  if (result === 'FAILED') {
+    if (!trimmedNotes || trimmedNotes.length < 5) {
+      errors.notes = 'Khi chọn Không đạt, vui lòng nhập rõ lý do từ chối (tối thiểu 5 ký tự).';
+    } else if (trimmedNotes === DEFAULT_PASS_NOTE) {
+      errors.notes = 'Không thể giữ nguyên ghi chú "Đạt tiêu chuẩn..." cho phiếu Không đạt.';
+    }
+  }
+
   return errors;
 }
 
@@ -34,8 +61,9 @@ export default function InspectorWorkspace({ user }) {
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [result, setResult] = useState('PASSED');
   const [agency, setAgency] = useState('Trung tâm Kiểm định Nông sản Đà Nẵng');
-  const [metrics, setMetrics] = useState('Brix: 14.5%, Dư lượng BVTV: Không phát hiện');
-  const [notes, setNotes] = useState('Đạt tiêu chuẩn VietGAP xuất kho.');
+  const [brix, setBrix] = useState('14.5');
+  const [residueTest, setResidueTest] = useState(RESIDUE_TEST_OPTIONS[0]);
+  const [notes, setNotes] = useState(DEFAULT_PASS_NOTE);
   const [loadingList, setLoadingList] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -45,6 +73,12 @@ export default function InspectorWorkspace({ user }) {
   const inFlightRef = useRef(false);
 
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) || null;
+  const selectedInspectionInfo = selectedBatch
+    ? getInspectionStatusInfo(selectedBatch.inspections)
+    : null;
+  const selectedIntakeInfo = selectedBatch
+    ? getWarehouseIntakeStatusInfo(selectedBatch.status)
+    : null;
 
   const loadBatches = useCallback(async () => {
     setLoadingList(true);
@@ -89,13 +123,25 @@ export default function InspectorWorkspace({ user }) {
     setFieldErrors({});
   };
 
+  const handleResultChange = (nextResult) => {
+    setResult(nextResult);
+    clearFieldError('notes');
+    if (nextResult === 'FAILED') {
+      if (notes.trim() === DEFAULT_PASS_NOTE) {
+        setNotes('');
+      }
+    } else if (!notes.trim()) {
+      setNotes(DEFAULT_PASS_NOTE);
+    }
+  };
+
   const handleInspect = async (e) => {
     e.preventDefault();
     if (!selectedBatch || inFlightRef.current) return;
 
     setMessage('');
     setSubmitError('');
-    const errors = validateInspectionForm({ agency, metrics });
+    const errors = validateInspectionForm({ result, agency, brix, residueTest, notes });
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -110,7 +156,8 @@ export default function InspectorWorkspace({ user }) {
         batch: selectedBatch,
         result,
         agency,
-        metrics,
+        brix,
+        residueTest,
         notes,
         actorUsername: user.username,
       });
@@ -205,8 +252,8 @@ export default function InspectorWorkspace({ user }) {
                 <th className="whitespace-nowrap py-2 pr-3">Mã lô</th>
                 <th className="whitespace-nowrap py-2 pr-3">Nông sản</th>
                 <th className="whitespace-nowrap py-2 pr-3">Sản lượng</th>
-                <th className="whitespace-nowrap py-2 pr-3">Trạng thái</th>
-                <th className="whitespace-nowrap py-2 pr-3">Kiểm định gần nhất</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái kiểm định</th>
+                <th className="whitespace-nowrap py-2 pr-3">Trạng thái nhập kho</th>
                 <th className="whitespace-nowrap py-2">Chọn</th>
               </tr>
             </thead>
@@ -223,7 +270,8 @@ export default function InspectorWorkspace({ user }) {
               ) : (
                 <>
                   {batches.map((b) => {
-                    const latest = b.inspections?.[0];
+                    const inspectionInfo = getInspectionStatusInfo(b.inspections);
+                    const intakeInfo = getWarehouseIntakeStatusInfo(b.status);
                     const isSelected = selectedBatch?.id === b.id;
                     return (
                       <tr key={b.id} className={isSelected ? 'bg-amber-50/70' : 'hover:bg-slate-50'}>
@@ -231,34 +279,22 @@ export default function InspectorWorkspace({ user }) {
                           {b.batch_code}
                         </td>
                         <td className="py-2.5 pr-3 font-medium text-slate-900">{b.product_name}</td>
-                        <td className="py-2.5 pr-3 text-xs text-slate-600">
+                        <td className="py-2.5 pr-3 whitespace-nowrap text-xs text-slate-600">
                           {b.quantity} {b.unit}
                         </td>
                         <td className="py-2.5 pr-3">
                           <span
-                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getBatchStatusStyle(
-                              b.status
-                            )}`}
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${inspectionInfo.badgeClass}`}
                           >
-                            {getBatchStatusLabel(b.status)}
+                            {inspectionInfo.label}
                           </span>
                         </td>
                         <td className="py-2.5 pr-3">
-                          {latest ? (
-                            <span
-                              className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                latest.result === 'PASSED'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}
-                            >
-                              {getInspectionResultLabel(latest.result)}
-                            </span>
-                          ) : (
-                            <span className="whitespace-nowrap text-xs text-slate-400">
-                              Chưa kiểm định
-                            </span>
-                          )}
+                          <span
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${intakeInfo.badgeClass}`}
+                          >
+                            {intakeInfo.label}
+                          </span>
                         </td>
                         <td className="py-2.5">
                           <button
@@ -309,10 +345,18 @@ export default function InspectorWorkspace({ user }) {
                 <strong className="font-mono text-slate-900">{selectedBatch.batch_code}</strong> —{' '}
                 <strong className="text-slate-900">{selectedBatch.product_name}</strong>
               </div>
-              <div className="mt-1 text-slate-500">
-                Sản lượng: {selectedBatch.quantity} {selectedBatch.unit} • Trạng thái:{' '}
-                <span className="font-semibold text-slate-700">
-                  {getBatchStatusLabel(selectedBatch.status)}
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-slate-500">
+                <span>
+                  Sản lượng: {selectedBatch.quantity} {selectedBatch.unit}
+                </span>
+                <span>•</span>
+                <span>
+                  Kiểm định:{' '}
+                  <strong className="text-slate-700">{selectedInspectionInfo?.label}</strong>
+                </span>
+                <span>•</span>
+                <span>
+                  Nhập kho: <strong className="text-slate-700">{selectedIntakeInfo?.label}</strong>
                 </span>
               </div>
             </div>
@@ -328,7 +372,7 @@ export default function InspectorWorkspace({ user }) {
                 id="inspector-result"
                 disabled={submitting}
                 value={result}
-                onChange={(e) => setResult(e.target.value)}
+                onChange={(e) => handleResultChange(e.target.value)}
                 className={inputClassName(false)}
               >
                 <option value="PASSED">Đạt chuẩn — Đủ điều kiện nhập kho</option>
@@ -360,28 +404,62 @@ export default function InspectorWorkspace({ user }) {
               )}
             </div>
 
-            <div>
-              <label
-                htmlFor="inspector-metrics"
-                className="block text-xs font-semibold text-slate-700"
-              >
-                Chỉ số kiểm nghiệm <span className="text-rose-600">*</span>
-              </label>
-              <input
-                id="inspector-metrics"
-                type="text"
-                disabled={submitting}
-                value={metrics}
-                aria-invalid={Boolean(fieldErrors.metrics)}
-                onChange={(e) => {
-                  setMetrics(e.target.value);
-                  clearFieldError('metrics');
-                }}
-                className={inputClassName(Boolean(fieldErrors.metrics))}
-              />
-              {fieldErrors.metrics && (
-                <p className="mt-1 text-xs text-rose-600">{fieldErrors.metrics}</p>
-              )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+              <div className="sm:col-span-4">
+                <label
+                  htmlFor="inspector-brix"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
+                >
+                  Độ Brix (%) <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  id="inspector-brix"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  disabled={submitting}
+                  value={brix}
+                  aria-invalid={Boolean(fieldErrors.brix)}
+                  onChange={(e) => {
+                    setBrix(e.target.value);
+                    clearFieldError('brix');
+                  }}
+                  className={inputClassName(Boolean(fieldErrors.brix))}
+                />
+                {fieldErrors.brix && (
+                  <p className="mt-1 text-xs text-rose-600">{fieldErrors.brix}</p>
+                )}
+              </div>
+
+              <div className="sm:col-span-8">
+                <label
+                  htmlFor="inspector-residue"
+                  className="block whitespace-nowrap text-xs font-semibold text-slate-700"
+                >
+                  Test kit dư lượng BVTV <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  id="inspector-residue"
+                  disabled={submitting}
+                  value={residueTest}
+                  aria-invalid={Boolean(fieldErrors.residueTest)}
+                  onChange={(e) => {
+                    setResidueTest(e.target.value);
+                    clearFieldError('residueTest');
+                  }}
+                  className={inputClassName(Boolean(fieldErrors.residueTest))}
+                >
+                  {RESIDUE_TEST_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                {fieldErrors.residueTest && (
+                  <p className="mt-1 text-xs text-rose-600">{fieldErrors.residueTest}</p>
+                )}
+              </div>
             </div>
 
             <div>
@@ -389,16 +467,34 @@ export default function InspectorWorkspace({ user }) {
                 htmlFor="inspector-notes"
                 className="block text-xs font-semibold text-slate-700"
               >
-                Ghi chú
+                {result === 'FAILED' ? (
+                  <>
+                    Lý do không đạt chuẩn <span className="text-rose-600">*</span>
+                  </>
+                ) : (
+                  'Ghi chú kiểm định'
+                )}
               </label>
               <textarea
                 id="inspector-notes"
                 rows={3}
                 disabled={submitting}
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className={inputClassName(false)}
+                placeholder={
+                  result === 'FAILED'
+                    ? 'Nhập rõ lý do không đạt (ví dụ: Dư lượng vượt ngưỡng, độ Brix thấp)...'
+                    : 'Nhập ghi chú kiểm định...'
+                }
+                aria-invalid={Boolean(fieldErrors.notes)}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  clearFieldError('notes');
+                }}
+                className={inputClassName(Boolean(fieldErrors.notes))}
               />
+              {fieldErrors.notes && (
+                <p className="mt-1 text-xs text-rose-600">{fieldErrors.notes}</p>
+              )}
             </div>
 
             {message && (
